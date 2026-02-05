@@ -28,6 +28,12 @@ public class Entity
     {
         Raylib.DrawTextureV(Texture, Position, Color.White);
     }
+
+    public T? GetBehavior<T>() where T : Behavior
+    {
+        // On regarde si un comportement specifique existe dans la liste
+        return _behaviors.OfType<T>().FirstOrDefault();
+    }
     
     public virtual void Update(float deltaTime)
     {
