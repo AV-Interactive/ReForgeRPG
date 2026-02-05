@@ -21,6 +21,14 @@ class Program
         // On ajoute le comportement de mouvement au joueur
         playerEntity.AddBehavior(new InputMovable { Speed = 250});
         
+        // On ajoute le comportement d'oscillation a l'ennemi
+        enemy.AddBehavior(new Oscillator
+        {
+            Direction = new Vector2(1, 0),
+            Distance = 100f,
+            Speed = 150f
+        });
+        
         engine.AddEntity(playerEntity);
         engine.AddEntity(enemy);
         
