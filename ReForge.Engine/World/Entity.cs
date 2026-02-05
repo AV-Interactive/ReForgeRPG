@@ -9,11 +9,19 @@ public class Entity
     public Texture2D Texture;
     public string Name;
 
+    List<Behavior> _behaviors = new List<Behavior>();
+
     public Entity(Vector2 position, Texture2D texture, string name)
     {
         Position = position;
         Texture = texture;
         Name = name;
+    }
+
+    public void AddBehavior(Behavior behavior)
+    {
+        behavior.Owner = this;
+        _behaviors.Add(behavior);
     }
 
     public virtual void Draw()
@@ -23,6 +31,9 @@ public class Entity
     
     public virtual void Update(float deltaTime)
     {
-        
+        foreach (Behavior behavior in _behaviors)
+        {
+            behavior.Update(deltaTime);
+        }
     }
 }
