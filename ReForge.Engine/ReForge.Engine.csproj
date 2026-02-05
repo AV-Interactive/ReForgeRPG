@@ -12,7 +12,6 @@
       <Folder Include="Graphics\" />
       <Folder Include="Inputs\" />
       <Folder Include="Physics\" />
-      <Folder Include="World\" />
     </ItemGroup>
 
     <ItemGroup>

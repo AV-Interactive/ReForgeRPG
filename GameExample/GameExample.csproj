@@ -12,4 +12,17 @@
       <ProjectReference Include="..\ReForge.Engine\ReForge.Engine.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Assets\Sprites\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Assets\Sprites\enemy.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="Assets\Sprites\player.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

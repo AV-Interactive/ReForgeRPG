@@ -1,20 +1,27 @@
 using Raylib_cs;
+using ReForge.Engine.World;
 namespace ReForge.Engine.Core;
 
 public class Engine
 {
-    /* Paramètres des fenêtres */
     int _whidth;
 
     int _height;
 
     string _winName;
 
+    List<Entity> _entities = new List<Entity>();
+
     public Engine(int whidth, int height, string winName)
     {
         _whidth = whidth;
         _height = height;
         _winName = winName;
+    }
+
+    public void AddEntity(Entity entity)
+    {
+        _entities.Add(entity);
     }
 
     /*
@@ -36,9 +43,32 @@ public class Engine
         while (!Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
+
+            foreach (Entity entity in _entities)
+            {
+                entity.Update(deltaTime);
+            }
+            
             Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+
+            foreach (Entity entity in _entities)
+            {
+                entity.Draw();
+            }
+            
             Raylib.EndDrawing();
         }
         Raylib.CloseWindow();
+    }
+
+    public Texture2D LoadTexture(string path)
+    {
+        return Raylib.LoadTexture(path);
+    }
+
+    public void DrawTexture(Texture2D texture, int x, int y)
+    {
+        Raylib.DrawTexture(texture, x, y, Color.White);
     }
 }
