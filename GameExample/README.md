@@ -15,57 +15,44 @@ On crée une instance de la classe `Engine` avec une résolution de 800x600 pixe
 
 ### 2. Chargement des ressources
 ```csharp
-var player = engine.LoadTexture("Assets/Sprites/player.png");
+var playerTexture = engine.LoadTexture("Assets/Sprites/player.png");
 var enemyTexture = engine.LoadTexture("Assets/Sprites/enemy.png");
 ```
 Les textures pour le joueur et l'ennemi sont chargées à partir des fichiers image situés dans le dossier `Assets/Sprites/`.
 
-### 3. Création des entités
+### 3. Création des entités via la Factory
 ```csharp
-Entity playerEntity = new Entity(new Vector2(400, 300), player, "Player");
-Entity enemy = new Entity(new Vector2(250, 300), enemyTexture, "Enemy");
+var player = EntityFactory.CreatePlayer(engine, new Vector2(400, 300), playerTexture);
+var e1 = EntityFactory.CreateEnemy(engine, new Vector2(130, 243), enemyTexture);
 ```
-Deux entités sont créées :
-- `playerEntity` : Placée au centre de l'écran (400, 300).
-- `enemy` : Placée à la position (250, 300).
+On utilise `EntityFactory` pour créer nos entités avec leurs comportements prédéfinis :
+- `player` : Créé à (400, 300).
+- `e1` : Un ennemi créé à (130, 243).
 
-### 4. Ajout de comportements (Behaviors)
-Des comportements sont attachés aux entités pour définir leur logique :
+### 4. Configuration dans EntityFactory
+La classe `EntityFactory` centralise la configuration des entités :
 
-*   **Mouvement du Joueur** : On lui ajoute `InputMovable` avec une vitesse de 250, ce qui permet de le contrôler via les entrées clavier.
-    ```csharp
-    playerEntity.AddBehavior(new InputMovable { Speed = 250});
-    ```
-*   **Mouvement de l'Ennemi** : On lui ajoute `Oscillator` pour qu'il effectue un mouvement de va-et-vient.
-    ```csharp
-    enemy.AddBehavior(new Oscillator
-    {
-        Direction = new Vector2(1, 0),
-        Distance = 150f,
-        Speed = 150f
-    });
-    ```
+*   **Le Joueur** : Reçoit automatiquement le comportement `InputMovable` (vitesse 250) et un `BoxCollider`.
+*   **L'Ennemi** : Reçoit un `Oscillator` (mouvement latéral de 150 unités) et un `BoxCollider`.
 
-### 5. Gestion des collisions
-On ajoute des hitboxes (collisionneurs) aux entités pour détecter les interactions :
-
+### 5. Gestion des collisions et destruction
+Dans `EntityFactory.CreateEnemy`, une logique de collision est définie :
 ```csharp
-var playerCollider = new BoxCollider();
-playerCollider.OnCollisionEnter = (other) =>
+collider.OnCollisionEnter = (other) =>
 {
-    Console.WriteLine($"Toine, tu viens de toucher {other.Name} !");
+    if (other.Name == "Player")
+    {
+        engine.DestroyEntity(enemyEntity);
+    }
 };
-playerEntity.AddBehavior(playerCollider);
-enemy.AddBehavior(new BoxCollider());
 ```
-- Le joueur possède un `BoxCollider` avec un événement `OnCollisionEnter` qui affiche un message dans la console lorsqu'il touche une autre entité.
-- L'ennemi possède également un `BoxCollider` pour pouvoir être détecté lors d'une collision.
+Si l'ennemi entre en collision avec une entité nommée "Player", il est détruit du moteur de jeu.
 
 ### 6. Enregistrement et lancement
 ```csharp
-engine.AddEntity(playerEntity);
-engine.AddEntity(enemy);
+engine.CurrentScene.AddEntity(player);
+engine.CurrentScene.AddEntity(e1);
 
 engine.Run();
 ```
-Les entités sont ajoutées au moteur de jeu via `AddEntity`. Enfin, `engine.Run()` démarre la boucle principale du jeu.
+Les entités sont ajoutées à la scène actuelle du moteur. Enfin, `engine.Run()` démarre la boucle principale.

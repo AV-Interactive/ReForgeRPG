@@ -10,6 +10,7 @@ public class Entity
     public string Name;
 
     List<Behavior> _behaviors = new List<Behavior>();
+    List<string> _tags = new List<string>();
 
     public Entity(Vector2 position, Texture2D texture, string name)
     {
@@ -42,4 +43,24 @@ public class Entity
             behavior.Update(deltaTime);
         }
     }
+
+    public Entity Clone()
+    {
+        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy");
+        
+        foreach (var tag in _tags) clone.AddTag(tag);
+
+        foreach (var behavior in _behaviors)
+        {
+            var clonedBehavior = behavior.Clone();
+            clone.AddBehavior(clonedBehavior);
+        }
+        
+        return clone;
+    }
+    
+    public void AddTag(string tag) => _tags.Add(tag);
+    public bool HasTag(string tag) => _tags.Contains(tag);
+    public void RemoveTag(string tag) => _tags.Remove(tag);
+    public List<string> Tags => _tags;
 }

@@ -13,4 +13,9 @@ public class InputMovable: Behavior
         if (Raylib.IsKeyDown(KeyboardKey.Up)) Owner.Position.Y -= Speed * deltaTime;
         if (Raylib.IsKeyDown(KeyboardKey.Down)) Owner.Position.Y += Speed * deltaTime;
     }
+
+    public override Behavior Clone()
+    {
+        return new InputMovable { Speed = this.Speed };
+    }
 }

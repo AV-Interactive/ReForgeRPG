@@ -5,24 +5,22 @@ namespace ReForge.Engine.Core;
 
 public class Engine
 {
-    int _whidth;
+    int _width;
 
     int _height;
 
     string _winName;
-    
-    public Scene CurrentScene { get; set; } = new Scene();
 
     public Engine(int whidth, int height, string winName)
     {
-        _whidth = whidth;
+        _width = whidth;
         _height = height;
         _winName = winName;
     }
     
     public void Initialize()
     {
-        Raylib.InitWindow(_whidth, _height, _winName);
+        Raylib.InitWindow(_width, _height, _winName);
         Raylib.SetTargetFPS(60);
     }
 
@@ -43,7 +41,14 @@ public class Engine
             Raylib.EndDrawing();
         }
         Raylib.CloseWindow();
+        AssetManager.UnloadAll();
     }
-    public Texture2D LoadTexture(string path) => Raylib.LoadTexture(path);
+    
+    public AssetManager AssetManager { get; set; } = new AssetManager();
+    
+    public Texture2D LoadTexture(string path) => AssetManager.GetTexture(path);
+    
+    public Scene CurrentScene { get; set; } = new Scene();
+    
     public void DestroyEntity(Entity entity) => CurrentScene.DestroyEntity(entity);
 }

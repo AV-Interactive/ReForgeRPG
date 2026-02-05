@@ -27,4 +27,14 @@ public class Oscillator: Behavior
         
         Owner.Position = _startPosition + (Direction * offset);
     }
+
+    public override Behavior Clone()
+    {
+        return new Oscillator 
+        { 
+            Direction = this.Direction, 
+            Distance = this.Distance, 
+            Speed = this.Speed 
+        };
+    }
 }

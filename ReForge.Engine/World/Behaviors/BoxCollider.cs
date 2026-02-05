@@ -20,6 +20,16 @@ public class BoxCollider: Behavior
         if (Height == 0) Height = Owner.Texture.Height;
     }
 
+    public override Behavior Clone()
+    {
+        return new BoxCollider 
+        { 
+            Width = this.Width, 
+            Height = this.Height, 
+            IsTrigger = this.IsTrigger 
+        };
+    }
+
     public void DrawDebug()
     {
         Raylib.DrawRectangleLinesEx(Bounds, 2, Color.Green);
