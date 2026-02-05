@@ -9,11 +9,14 @@
 
     <ItemGroup>
       <Folder Include="Audio\" />
-      <Folder Include="Core\" />
       <Folder Include="Graphics\" />
       <Folder Include="Inputs\" />
       <Folder Include="Physics\" />
       <Folder Include="World\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Raylib-cs" Version="7.0.2" />
     </ItemGroup>
 
 </Project>
