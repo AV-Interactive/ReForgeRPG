@@ -11,6 +11,6 @@ public class OnPlayerTouch: Behavior
 
     public override Behavior Clone()
     {
-        //
+        throw new NotImplementedException();
     }
 }

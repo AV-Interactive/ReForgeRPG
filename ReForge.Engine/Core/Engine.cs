@@ -1,11 +1,11 @@
 using Raylib_cs;
-using ReForge.Engin.Physics;
+using ReForge.Engine.Physics;
 using ReForge.Engine.World;
 namespace ReForge.Engine.Core;
 
 public class Engine
 {
-    int _width;
+    int _whidth;
 
     int _height;
 
@@ -13,14 +13,14 @@ public class Engine
 
     public Engine(int whidth, int height, string winName)
     {
-        _width = whidth;
+        _whidth = whidth;
         _height = height;
         _winName = winName;
     }
     
     public void Initialize()
     {
-        Raylib.InitWindow(_width, _height, _winName);
+        Raylib.InitWindow(_whidth, _height, _winName);
         Raylib.SetTargetFPS(60);
     }
 
@@ -29,17 +29,28 @@ public class Engine
         while (!Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
-
-            CurrentScene.Update(deltaTime);
-            
+        
+            Update(deltaTime);
+        
             Raylib.BeginDrawing();
-            
-            Raylib.ClearBackground(Color.Black);
-            
-            CurrentScene.Draw();
-            
+            Render();
             Raylib.EndDrawing();
         }
+    }
+
+    public void Update(float deltaTime)
+    {
+        CurrentScene.Update(deltaTime);
+    }
+
+    public void Render()
+    {
+        Raylib.ClearBackground(Color.Black);
+        CurrentScene.Draw();
+    }
+
+    public void CleanUp()
+    {
         Raylib.CloseWindow();
         AssetManager.UnloadAll();
     }

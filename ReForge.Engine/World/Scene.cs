@@ -1,5 +1,5 @@
 using Raylib_cs;
-using ReForge.Engin.Physics;
+using ReForge.Engine.Physics;
 
 namespace ReForge.Engine.World;
 
@@ -47,4 +47,6 @@ public class Scene
         }
         _entitiesToRemove.Clear();
     }
+    
+    public List<Entity> Entities => _entities;
 }

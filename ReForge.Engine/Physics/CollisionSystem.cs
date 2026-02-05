@@ -2,7 +2,7 @@ using Raylib_cs;
 using ReForge.Engine.World;
 using ReForge.Engine.World.Behaviors;
 
-namespace ReForge.Engin.Physics;
+namespace ReForge.Engine.Physics;
 
 public static class CollisionSystem
 {
