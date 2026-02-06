@@ -20,6 +20,7 @@ public class Engine
     
     public void Initialize()
     {
+        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(_whidth, _height, _winName);
         Raylib.SetTargetFPS(60);
     }

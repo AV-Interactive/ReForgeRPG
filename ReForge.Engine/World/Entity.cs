@@ -8,6 +8,7 @@ public class Entity
     public Vector2 Position;
     public Texture2D Texture;
     public string Name;
+    public int ZIndex = 0;
 
     List<Behavior> _behaviors = new List<Behavior>();
     List<string> _tags = new List<string>();

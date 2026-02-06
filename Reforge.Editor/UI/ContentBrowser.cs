@@ -10,24 +10,29 @@ public class ContentBrowser
     public void Draw()
     {
         ImGui.Begin("Content Browser");
-        
-        // Chemin vers tes assets (à adapter selon ton dossier sur Mac)
-        string path = "Assets"; 
     
+        string path = "Assets"; 
+
         if (Directory.Exists(path))
         {
-            foreach (var file in Directory.GetFiles(path, "*.png"))
+            var files = Directory.GetFiles(path, "*.png");
+            for (int i = 0; i < files.Length; i++)
             {
+                string file = files[i];
                 string fileName = Path.GetFileName(file);
-                // On affiche le fichier. Si on clique, on le sélectionne.
+
+                ImGui.PushID(i); 
+
                 if (ImGui.Selectable(fileName, SelectedAsset == file))
                 {
                     SelectedAsset = file;
                 }
+
+                ImGui.PopID(); 
             }
         }
-        else { ImGui.Text("Dossier Assets non trouvé !"); }
-        
+        else { ImGui.Text($"Dossier Assets non trouvé !"); }
+    
         ImGui.End();
     }
 }

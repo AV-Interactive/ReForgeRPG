@@ -9,64 +9,72 @@ namespace Reforge.Editor.Tools;
 public class MapPainter
 {
     public float GridSize = 32.0f;
+
+    Vector2 _lastSnappedPos;
+    bool _hasPreview;
+    string _lastAsset = string.Empty;
     
-    public void Update(Engine engine, string selectedAsset)
+    public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 viewportScreenPos)
     {
-        if(ImGui.IsMouseClicked(ImGuiMouseButton.Left) && !string.IsNullOrEmpty(selectedAsset))
+        if (string.IsNullOrEmpty(selectedAsset))
         {
-            Vector2 mousePos = ImGui.GetMousePos();
-            Vector2 windowPos = ImGui.GetWindowPos();
-            Vector2 contentOffset = ImGui.GetCursorStartPos();
-            
-            Vector2 relativeMousePos = mousePos - (windowPos + contentOffset);
-
-            Vector2 snappedPos = new Vector2(
-                MathF.Floor(relativeMousePos.X / GridSize) * GridSize,
-                MathF.Floor(relativeMousePos.Y / GridSize) * GridSize
-            );
-
-            if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-            {
-                if (!string.IsNullOrEmpty(selectedAsset))
-                {
-                    var tex = engine.AssetManager.GetTexture(selectedAsset);
-                    var entity = new Entity(snappedPos, tex, "NewTile");
-                    engine.CurrentScene.AddEntity(entity);
-                }
-            }
+            _hasPreview = false;
+            _lastAsset = string.Empty;
+            return;
         }
-    }
-    
-    public void DrawPreview(Engine engine, string selectedAsset)
-    {
-        if (string.IsNullOrEmpty(selectedAsset)) return;
-
+        
         Vector2 mousePos = ImGui.GetMousePos();
-        Vector2 windowPos = ImGui.GetWindowPos();
-        Vector2 contentOffset = ImGui.GetCursorStartPos();
-        Vector2 relativeMousePos = mousePos - (windowPos + contentOffset);
+        Vector2 relativeMousePos = mousePos - viewportScreenPos;
 
         Vector2 snappedPos = new Vector2(
             MathF.Floor(relativeMousePos.X / GridSize) * GridSize,
             MathF.Floor(relativeMousePos.Y / GridSize) * GridSize
         );
+        
+        _lastSnappedPos = snappedPos;
+        _hasPreview = ImGui.IsWindowHovered();
+        _lastAsset = selectedAsset;
 
-        var tex = engine.AssetManager.GetTexture(selectedAsset);
-        Raylib.DrawTextureV(tex, snappedPos, Raylib.Fade(Color.White, 0.5f));
+        if (_hasPreview && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
+                e.Position.X == snappedPos.X && 
+                e.Position.Y == snappedPos.Y && 
+                e.ZIndex == currentLayerFromEditor);
+            if (existingTile != null)
+            {
+                engine.CurrentScene.DestroyEntity(existingTile);
+            }
+            
+            var tex = engine.AssetManager.GetTexture(selectedAsset);
+            var entity = new Entity(snappedPos, tex, "NewTile");
+            entity.Name = selectedAsset.Split('/').Last().Split('.').First();
+            entity.ZIndex = currentLayerFromEditor;
+            engine.CurrentScene.AddEntity(entity);
+        }
     }
     
-    public void DrawGrid()
+    public void DrawPreview(Engine engine)
+    {
+        if (!_hasPreview || string.IsNullOrEmpty(_lastAsset)) return;
+        var tex = engine.AssetManager.GetTexture(_lastAsset);
+        Raylib.DrawTextureV(tex, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
+    }
+    
+    public void DrawGrid(RenderTexture2D viewport)
     {
         Color gridColor = new Color(50, 50, 50, 255);
+        int width = viewport.Texture.Width;
+        int height = viewport.Texture.Height;
 
-        for (int x = 0; x <= 1280; x += (int)GridSize)
+        for (int x = 0; x <= width; x += (int)GridSize)
         {
-            Raylib.DrawLine(x, 0, x, 720, gridColor);
+            Raylib.DrawLine(x, 0, x, height, gridColor);
         }
 
-        for (int y = 0; y <= 720; y += (int)GridSize)
+        for (int y = 0; y <= height; y += (int)GridSize)
         {
-            Raylib.DrawLine(0, y, 1280, y, gridColor);
+            Raylib.DrawLine(0, y, width, y, gridColor);
         }
     }
 }
