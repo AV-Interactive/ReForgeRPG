@@ -49,10 +49,13 @@ public class InspectorPanel
             ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), "Choisir un comportement");
             foreach (var type in _availableBehaviors)
             {
-                if (ImGui.Selectable(type.Name))
+                if (!selectedEntity.Behaviors.Any(b => b.GetType() == type))
                 {
-                    var newBehavior = (Behavior)Activator.CreateInstance(type);
-                    selectedEntity.AddBehavior(newBehavior);
+                    if (ImGui.Selectable(type.Name))
+                    {
+                        var newBehavior = (Behavior)Activator.CreateInstance(type);
+                        selectedEntity.AddBehavior(newBehavior);
+                    }
                 }
             }
             
