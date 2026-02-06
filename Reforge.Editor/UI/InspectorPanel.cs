@@ -8,7 +8,7 @@ namespace Reforge.Editor.UI;
 
 public class InspectorPanel
 {
-    List<Type>? _availableBehaviors;
+    List<Type> _availableBehaviors = new List<Type>();
     
     public void Draw(Entity? selectedEntity)
     {
@@ -28,13 +28,34 @@ public class InspectorPanel
         
         ImGui.Separator();
         ImGui.Text("Comportements");
+        Behavior? behaviorToRemove = null;
 
         foreach (var behavior in selectedEntity.Behaviors)
         {
-            if (ImGui.CollapsingHeader(behavior.GetType().Name, ImGuiTreeNodeFlags.DefaultOpen))
+            ImGui.PushID(behavior.GetHashCode());
+            
+            bool open = ImGui.TreeNodeEx(behavior.GetType().Name, ImGuiTreeNodeFlags.DefaultOpen);
+            
+            ImGui.SameLine(ImGui.GetWindowWidth() - 30);
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.1f, 0.1f, 1.0f));
+            if (ImGui.Button("X"))
+            {
+                behaviorToRemove = behavior;
+            }
+            ImGui.PopStyleColor();
+            
+            if (open)
             {
                 DrawBehaviorEditor(behavior);
+                ImGui.TreePop();
             }
+            
+            ImGui.PopID();
+        }
+
+        if (behaviorToRemove != null)
+        {
+            selectedEntity.RemoveBehavior(behaviorToRemove);
         }
         
         ImGui.Separator();
@@ -57,6 +78,10 @@ public class InspectorPanel
                         selectedEntity.AddBehavior(newBehavior);
                     }
                 }
+            }
+            if (ImGui.Button("Annuler", new Vector2(-1, 0)))
+            {
+                ImGui.CloseCurrentPopup();
             }
             
             ImGui.EndPopup();

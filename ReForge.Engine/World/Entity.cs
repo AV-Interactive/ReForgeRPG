@@ -26,6 +26,11 @@ public class Entity
         _behaviors.Add(behavior);
     }
 
+    public void RemoveBehavior(Behavior behavior)
+    {
+        _behaviors.Remove(behavior);
+    }
+
     public virtual void Draw()
     {
         Raylib.DrawTextureV(Texture, Position, Color.White);
