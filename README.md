@@ -1,0 +1,48 @@
+# ReForgeRPG
+
+ReForgeRPG est un moteur de jeu 2D accompagné de son éditeur, conçu pour faciliter la création de RPG. Le projet est développé en C# avec .NET 10, en utilisant Raylib pour le rendu et ImGui pour l'interface de l'éditeur.
+
+## 🚀 Composants du projet
+
+Ce dépôt se concentre sur le moteur et l'éditeur :
+
+- **ReForge.Engine** : Le cœur du moteur de jeu.
+- **Reforge.Editor** : L'outil de création de scènes et de gestion d'assets.
+
+## 🛠️ Fonctionnalités
+
+### ReForge.Engine (Moteur)
+- **Système d'Entités** : Gestion d'entités avec position, textures et profondeur (ZIndex).
+- **Gestion de Scènes** : Système de scènes permettant d'organiser les objets de jeu.
+- **Asset Manager** : Chargement et gestion centralisée des textures.
+- **Système de Collision** : Prise en charge des collisions de base.
+- **Rendu Performant** : Basé sur Raylib pour un rendu 2D efficace.
+
+### Reforge.Editor (Éditeur)
+- **Map Painter** : Outil de peinture sur grille (Tile-based) pour créer des environnements.
+- **Système de Couches** : Gestion de la profondeur avec trois couches principales (Background, World, Foreground).
+- **Content Browser** : Explorateur d'assets pour importer et sélectionner des ressources.
+- **Hierarchy Panel** : Visualisation en temps réel des entités présentes dans la scène.
+- **Game View** : Aperçu interactif du jeu directement dans l'éditeur.
+- **Mode Play/Stop** : Basculement entre l'édition et l'exécution du jeu pour tester les scènes.
+
+## 💻 Technologies utilisées
+
+- **Langage** : C# (14.0)
+- **Framework** : .NET 10
+- **Rendu** : [Raylib-cs](https://github.com/ChrisDill/Raylib-cs)
+- **Interface Éditeur** : [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) & [rlImGui-cs](https://github.com/raylib-extras/rlImGui-cs)
+
+## 📁 Structure du dossier
+
+- `ReForge.Engine/` : Source du moteur de jeu.
+- `Reforge.Editor/` : Source de l'éditeur de scènes.
+- `GameExample/` : Projet exemple démontrant l'utilisation du moteur.
+- `ReForgeRPG.sln` : Solution pour Visual Studio / Rider.
+
+## ⚙️ Installation & Utilisation
+
+1. Clonez le dépôt.
+2. Ouvrez `ReForgeRPG.sln` avec votre IDE favori (Rider ou Visual Studio recommandé).
+3. Compilez la solution.
+4. Lancez `Reforge.Editor` pour commencer à créer vos scènes.
