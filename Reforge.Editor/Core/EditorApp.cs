@@ -75,7 +75,7 @@
             ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
             DrawMenuBar();
             
-            _contentBrowser.Draw();
+            _contentBrowser.Draw(_engine);
 
             ImGui.Begin("Game View");
             if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
@@ -125,6 +125,21 @@
         {
             if (ImGui.BeginMainMenuBar())
             {
+                if (ImGui.BeginMenu("Fichier"))
+                {
+                    if (ImGui.MenuItem("Sauvegarder la Scène"))
+                    {
+                        string fullPath = Path.Combine(ProjectPaths.Scenes, "01.json");
+                        SceneSerializer.Save(_engine.CurrentScene, fullPath);
+                    }
+                    if (ImGui.MenuItem("Quitter")) _running = false;
+                
+                    ImGui.EndMenu();
+                }
+                
+                ImGui.Separator();
+                
+                
                 if (_currentState == EditorState.Editing)
                 {
                     if (ImGui.MenuItem("Play")) _currentState = EditorState.Playing;

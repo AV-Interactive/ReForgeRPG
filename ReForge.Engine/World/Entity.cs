@@ -1,22 +1,41 @@
 using System.Numerics;
+using System.Text.Json.Serialization;
 using Raylib_cs;
 
 namespace ReForge.Engine.World;
 
 public class Entity
 {
-    public Vector2 Position;
-    public Texture2D Texture;
-    public string Name;
-    public int ZIndex = 0;
+    public string Name { get; set; } = "Nouvel element";
+    public Vector2 Position { get; set;}
+    public int ZIndex { get; set; } = 0;
+    public string TexturePath { get; set; } = "";
 
+    public List<string> Tags
+    {
+        get => _tags;
+        set => _tags = value;
+    }
+
+    public List<Behavior> Behaviors
+    {
+        get => _behaviors;
+        set => _behaviors = value;
+    }
+    
+    public Entity() { }
+
+    [JsonIgnore]
+    public Texture2D Texture { get; set; }
+    
     List<Behavior> _behaviors = new List<Behavior>();
     List<string> _tags = new List<string>();
 
-    public Entity(Vector2 position, Texture2D texture, string name)
+    public Entity(Vector2 position, Texture2D texture, string name, string texturePath)
     {
         Position = position;
         Texture = texture;
+        TexturePath = texturePath;
         Name = name;
     }
 
@@ -52,7 +71,7 @@ public class Entity
 
     public Entity Clone()
     {
-        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy");
+        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy", this.TexturePath);
         
         foreach (var tag in _tags) clone.AddTag(tag);
 
@@ -68,7 +87,4 @@ public class Entity
     public void AddTag(string tag) => _tags.Add(tag);
     public bool HasTag(string tag) => _tags.Contains(tag);
     public void RemoveTag(string tag) => _tags.Remove(tag);
-    public List<string> Tags => _tags;
-    
-    public List<Behavior> Behaviors => _behaviors;
 }

@@ -51,7 +51,7 @@ public class MapPainter
             }
             
             var tex = engine.AssetManager.GetTexture(selectedAsset);
-            var entity = new Entity(snappedPos, tex, "NewTile");
+            var entity = new Entity(snappedPos, tex, "NewTile", selectedAsset);
             entity.Name = selectedAsset.Split('/').Last().Split('.').First();
             entity.ZIndex = currentLayerFromEditor;
             engine.CurrentScene.AddEntity(entity);

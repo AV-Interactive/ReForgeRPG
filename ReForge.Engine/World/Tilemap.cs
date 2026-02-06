@@ -5,13 +5,18 @@ namespace ReForge.Engine.World;
 
 public class TileLayer
 {
-    public int[,] Data;
-    public bool IsCollidable;
-    public bool IsForeground;
+    public int[][] Data { get; set; }
+    public bool IsCollidable { get; set;}
+    public bool IsForeground { get; set;}
+    public TileLayer() { }
     
     public TileLayer(int width, int height)
     {
-        Data = new int[width, height];
+        Data = new int[width][];
+        for (int i = 0; i < width; i++)
+        {
+            Data[i] = new int[height];
+        }
     }
 }
 
@@ -21,7 +26,7 @@ public class Tilemap: Entity
     int _tileSize;
     Texture2D _tileset;
     
-    public Tilemap(Vector2 position, int tileSize, Texture2D tileset) : base(position, tileset, "Tilemap")
+    public Tilemap(Vector2 position, int tileSize, Texture2D tileset, string texturePath) : base(position, tileset, "Tilemap", texturePath)
     {
         _tileSize = tileSize;
         _tileset = tileset;
@@ -43,7 +48,7 @@ public class Tilemap: Entity
         {
             for (int x = 0; x < layer.Data.GetLength(0); x++)
             {
-                int tileId = layer.Data[x, y];
+                int tileId = layer.Data[x][y];
 
                 if (tileId == 0) continue;
 

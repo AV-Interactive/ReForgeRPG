@@ -1,3 +1,4 @@
+using System.Numerics;
 using Raylib_cs;
 using ReForge.Engine.World;
 using ReForge.Engine.World.Behaviors;
@@ -48,19 +49,21 @@ public static class CollisionSystem
                     {
                         Rectangle overlap = Raylib.GetCollisionRec(colA.Bounds, colB.Bounds);
                         
+                        Vector2 newPos = entA.Position;
+                        
                         if (overlap.Width < overlap.Height)
                         {
                             if(entA.Position.X < entB.Position.X) 
-                                entA.Position.X -= overlap.Width;
+                                newPos.X -= overlap.Width;
                             else 
-                                entA.Position.X += overlap.Width;
+                                newPos.X += overlap.Width;
                         }
                         else
                         {
                             if(entA.Position.Y < entB.Position.Y) 
-                                entA.Position.Y -= overlap.Height;
+                                newPos.Y -= overlap.Height;
                             else 
-                                entA.Position.Y += overlap.Height;
+                                newPos.Y += overlap.Height;
                         }
                     }
                 }
