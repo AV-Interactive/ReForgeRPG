@@ -64,4 +64,6 @@ public class Entity
     public bool HasTag(string tag) => _tags.Contains(tag);
     public void RemoveTag(string tag) => _tags.Remove(tag);
     public List<string> Tags => _tags;
+    
+    public List<Behavior> Behaviors => _behaviors;
 }

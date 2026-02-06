@@ -37,10 +37,14 @@ public class MapPainter
 
         if (_hasPreview && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
         {
+            int targetX = (int)MathF.Round(snappedPos.X);
+            int targetY = (int)MathF.Round(snappedPos.Y);
+
             var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
-                e.Position.X == snappedPos.X && 
-                e.Position.Y == snappedPos.Y && 
+                (int)MathF.Round(e.Position.X) == targetX && 
+                (int)MathF.Round(e.Position.Y) == targetY && 
                 e.ZIndex == currentLayerFromEditor);
+
             if (existingTile != null)
             {
                 engine.CurrentScene.DestroyEntity(existingTile);

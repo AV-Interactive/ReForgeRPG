@@ -23,6 +23,8 @@
         
         ContentBrowser _contentBrowser = new ContentBrowser();
         MapPainter _mapPainter = new MapPainter();
+        HierarchyPanel _hierarchyPanel = new HierarchyPanel();
+        InspectorPanel _inspectorPanel = new InspectorPanel();
 
         public EditorApp()
         {
@@ -71,21 +73,19 @@
         void DrawUI()
         {
             ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
-            
             DrawMenuBar();
             
             _contentBrowser.Draw();
 
+            ImGui.Begin("Game View");
             if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
             {
-                ImGui.Begin("Game View");
-
                 _engine.AssetManager.GetTexture(_contentBrowser.SelectedAsset);
 
                 Vector2 screenPos = ImGui.GetCursorScreenPos();
                 _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, screenPos);
                 Vector2 regionMax = ImGui.GetContentRegionAvail();
-                
+            
                 if (regionMax.X != _viewportRes.Texture.Width || regionMax.Y != _viewportRes.Texture.Height)
                 {
                     if (regionMax.X > 0 && regionMax.Y > 0) 
@@ -94,17 +94,14 @@
                         _viewportRes = Raylib.LoadRenderTexture((int)regionMax.X, (int)regionMax.Y);
                     }
                 }
-                
-                ImGui.Image((IntPtr)_viewportRes.Texture.Id, regionMax, new Vector2(0, 1), new Vector2(1, 0));
             
-                ImGui.End();
+                ImGui.Image((IntPtr)_viewportRes.Texture.Id, regionMax, new Vector2(0, 1), new Vector2(1, 0));
             }
             else
             {
-                ImGui.Begin("Game View");
                 ImGui.Text("Sélectionnez un asset pour commencer à peindre");
-                ImGui.End();
             }
+            ImGui.End();
 
             ImGui.Begin("Layer Control");
             ImGui.RadioButton("Backgound", ref _currentLayer, 0);
@@ -112,12 +109,10 @@
             ImGui.RadioButton("Foreground", ref _currentLayer, 2);
             ImGui.End();
             
-            ImGui.Begin("Hierarchy");
-            foreach (Entity entity in _engine.CurrentScene.Entities)
-            {
-                if (ImGui.Selectable(entity.Name)) ;
-            }
-            ImGui.End();
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities);
+            
+            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity);
+            
         }
         
         void Cleanup()

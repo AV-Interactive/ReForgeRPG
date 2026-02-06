@@ -26,6 +26,7 @@ public class Scene
     
     public void Draw()
     {
+        CleanUp();
         foreach (Entity entity in _entities.OrderBy(e => e.ZIndex))
         {
             entity.Draw();
