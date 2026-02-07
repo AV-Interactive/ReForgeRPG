@@ -1,6 +1,8 @@
 # GameExample Documentation
 
-Ce projet est un exemple simple d'utilisation du moteur **ReForgeRPG**. Le point d'entrée se trouve dans `Program.cs`.
+Ce projet est un exemple simple d'utilisation du moteur **ReForgeRPG**. Il démontre comment initialiser le moteur, charger des assets et créer des entités avec des comportements personnalisés.
+
+Le point d'entrée se trouve dans `Program.cs`.
 
 ## Contenu de la méthode Main
 
