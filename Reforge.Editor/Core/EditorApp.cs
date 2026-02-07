@@ -25,12 +25,12 @@
         MapPainter _mapPainter = new MapPainter();
         HierarchyPanel _hierarchyPanel = new HierarchyPanel();
         InspectorPanel _inspectorPanel = new InspectorPanel();
+        TransformGizmo _gizmoTransform = new TransformGizmo();
 
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
             _engine.Initialize();
-
             _viewportRes = Raylib.LoadRenderTexture(_appWidth, _appHeight);
         }
 
@@ -53,7 +53,12 @@
                 if (_currentState == EditorState.Editing)
                 {
                     _mapPainter.DrawPreview(_engine);
-                    _mapPainter.DrawGrid(_viewportRes); 
+                    _mapPainter.DrawGrid(_viewportRes);
+
+                    if (_hierarchyPanel.SelectedEntity != null)
+                    {
+                        _gizmoTransform.Draw(_hierarchyPanel.SelectedEntity);
+                    }
                 }
                 Raylib.EndTextureMode();
         
@@ -69,50 +74,71 @@
             rlImGui.Shutdown();
             Cleanup();
         }
-        
+
         void DrawUI()
         {
             ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
             DrawMenuBar();
-            
+
+            // Affichage des panneaux
             _contentBrowser.Draw(_engine);
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities);
+            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity);
+            DrawLayerControl();
 
+            // Fenêtre de visualisation du jeu
             ImGui.Begin("Game View");
-            if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
-            {
-                _engine.AssetManager.GetTexture(_contentBrowser.SelectedAsset);
+            
+            Vector2 viewportPos = ImGui.GetCursorScreenPos();
+            HandleViewportResizing();
 
-                Vector2 screenPos = ImGui.GetCursorScreenPos();
-                _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, screenPos);
-                Vector2 regionMax = ImGui.GetContentRegionAvail();
-            
-                if (regionMax.X != _viewportRes.Texture.Width || regionMax.Y != _viewportRes.Texture.Height)
+            Vector2 regionMax = ImGui.GetContentRegionAvail();
+            ImGui.Image((IntPtr)_viewportRes.Texture.Id, regionMax, new Vector2(0, 1), new Vector2(1, 0));
+
+            // Logique des outils (Priorité au Gizmo sur le Pinceau)
+            HandleEditorTools(viewportPos);
+
+            ImGui.End();
+        }
+
+        void HandleViewportResizing()
+        {
+            Vector2 regionMax = ImGui.GetContentRegionAvail();
+            if (regionMax.X != _viewportRes.Texture.Width || regionMax.Y != _viewportRes.Texture.Height)
+            {
+                if (regionMax.X > 0 && regionMax.Y > 0)
                 {
-                    if (regionMax.X > 0 && regionMax.Y > 0) 
-                    {
-                        Raylib.UnloadRenderTexture(_viewportRes);
-                        _viewportRes = Raylib.LoadRenderTexture((int)regionMax.X, (int)regionMax.Y);
-                    }
+                    Raylib.UnloadRenderTexture(_viewportRes);
+                    _viewportRes = Raylib.LoadRenderTexture((int)regionMax.X, (int)regionMax.Y);
                 }
-            
-                ImGui.Image((IntPtr)_viewportRes.Texture.Id, regionMax, new Vector2(0, 1), new Vector2(1, 0));
+            }
+        }
+
+        void HandleEditorTools(Vector2 viewportPos)
+        {
+            if (_hierarchyPanel.SelectedEntity != null)
+            {
+                _gizmoTransform.Update(_hierarchyPanel.SelectedEntity, viewportPos);
+            }
+
+            else if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
+            {
+                _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, viewportPos);
             }
             else
             {
-                ImGui.Text("Sélectionnez un asset pour commencer à peindre");
+                ImGui.SetCursorPos(new Vector2(10, 30));
+                ImGui.TextColored(new Vector4(1, 1, 0, 1), "Mode Selection: Cliquez sur une entité dans la hiérarchie.");
             }
-            ImGui.End();
+        }
 
+        void DrawLayerControl()
+        {
             ImGui.Begin("Layer Control");
-            ImGui.RadioButton("Backgound", ref _currentLayer, 0);
+            ImGui.RadioButton("Background", ref _currentLayer, 0);
             ImGui.RadioButton("World", ref _currentLayer, 1);
             ImGui.RadioButton("Foreground", ref _currentLayer, 2);
             ImGui.End();
-            
-            _hierarchyPanel.Draw(_engine.CurrentScene.Entities);
-            
-            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity);
-            
         }
         
         void Cleanup()

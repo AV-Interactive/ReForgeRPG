@@ -5,15 +5,15 @@ namespace ReForge.Engine.Core;
 
 public class Engine
 {
-    int _whidth;
+    int _width;
 
     int _height;
 
     string _winName;
 
-    public Engine(int whidth, int height, string winName)
+    public Engine(int width, int height, string winName)
     {
-        _whidth = whidth;
+        _width = width;
         _height = height;
         _winName = winName;
     }
@@ -21,7 +21,7 @@ public class Engine
     public void Initialize()
     {
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
-        Raylib.InitWindow(_whidth, _height, _winName);
+        Raylib.InitWindow(_width, _height, _winName);
         Raylib.SetTargetFPS(60);
     }
 
