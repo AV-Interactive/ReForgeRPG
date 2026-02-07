@@ -10,12 +10,16 @@ public class Engine
     int _height;
 
     string _winName;
+    
+    public static Engine Instance { get; private set; } = null!;
 
     public Engine(int width, int height, string winName)
     {
         _width = width;
         _height = height;
         _winName = winName;
+
+        Instance = this;
     }
     
     public void Initialize()

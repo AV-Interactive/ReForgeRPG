@@ -43,6 +43,7 @@ public class Entity
     {
         behavior.Owner = this;
         _behaviors.Add(behavior);
+        behavior.Initialize();
     }
 
     public void RemoveBehavior(Behavior behavior)
@@ -82,6 +83,14 @@ public class Entity
         }
         
         return clone;
+    }
+
+    public void BroadcastEvent(string eventName, object data)
+    {
+        foreach (Behavior behavior in _behaviors)
+        {
+            behavior.OnReceivedEvent(eventName, data);
+        }
     }
     
     public void AddTag(string tag) => _tags.Add(tag);

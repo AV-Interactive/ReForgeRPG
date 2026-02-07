@@ -11,8 +11,14 @@ public class BoxCollider: Behavior
     public Action<Entity>? OnCollisionEnter;
     public Action<Entity>? OnCollisionStay;
     public Action<Entity>? OnCollisionExit;
-
+    
     public Rectangle Bounds => new Rectangle(Owner.Position.X, Owner.Position.Y, Width, Height);
+
+    public void Initialize()
+    {
+        OnCollisionEnter += (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
+        OnCollisionExit += (target) => Owner.BroadcastEvent("OnCollisionExit", target);
+    }
     
     public override void Update(float deltaTime)
     {

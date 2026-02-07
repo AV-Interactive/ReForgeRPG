@@ -9,12 +9,14 @@ public class InputMovable: Behavior
     
     public override void Update(float deltaTime)
     {
-        Vector2 currentPos = Owner.Position;
+        Vector2 nextPos = Owner.Position;
         
-        if (Raylib.IsKeyDown(KeyboardKey.Right)) currentPos.X += Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Left)) currentPos.X -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Up)) currentPos.Y -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Down)) currentPos.Y += Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Right)) nextPos.X += Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Left)) nextPos.X -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Up)) nextPos.Y -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Down)) nextPos.Y += Speed * deltaTime;
+        
+        Owner.Position = nextPos;
     }
 
     public override Behavior Clone()
