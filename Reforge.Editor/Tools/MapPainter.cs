@@ -1,6 +1,7 @@
 using System.Numerics;
 using ImGuiNET;
 using Raylib_cs;
+using Reforge.Editor.Core;
 using ReForge.Engine.Core;
 using ReForge.Engine.World;
 
@@ -26,10 +27,7 @@ public class MapPainter
         Vector2 mousePos = ImGui.GetMousePos();
         Vector2 relativeMousePos = mousePos - viewportScreenPos;
 
-        Vector2 snappedPos = new Vector2(
-            MathF.Floor(relativeMousePos.X / GridSize) * GridSize,
-            MathF.Floor(relativeMousePos.Y / GridSize) * GridSize
-        );
+        Vector2 snappedPos = EditorMath.SnapToGrid(relativeMousePos);
         
         _lastSnappedPos = snappedPos;
         _hasPreview = ImGui.IsWindowHovered();

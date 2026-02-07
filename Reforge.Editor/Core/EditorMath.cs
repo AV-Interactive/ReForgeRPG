@@ -1,0 +1,22 @@
+using System.Numerics;
+using Raylib_cs;
+
+namespace Reforge.Editor.Core;
+
+public static class EditorMath
+{
+    public static Vector2 SnapToGrid(Vector2 position)
+    {
+        return new Vector2(
+            MathF.Floor(position.X / EditorConfig.GridSize) * EditorConfig.GridSize,
+            MathF.Floor(position.Y / EditorConfig.GridSize) * EditorConfig.GridSize
+        );
+    }
+
+    public static Vector2 SnapToGridRelativePos(Vector2 position)
+    {
+        Vector2 mousePos = Raylib.GetMousePosition();
+        Vector2 relativeMousePos = mousePos - position;
+        return SnapToGrid(relativeMousePos);
+    }
+}

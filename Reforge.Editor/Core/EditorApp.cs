@@ -25,13 +25,15 @@
         MapPainter _mapPainter = new MapPainter();
         HierarchyPanel _hierarchyPanel = new HierarchyPanel();
         InspectorPanel _inspectorPanel = new InspectorPanel();
-        TransformGizmo _gizmoTransform = new TransformGizmo();
+        HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
+        EditorSelector _editorSelector = new EditorSelector();
 
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
             _engine.Initialize();
             _viewportRes = Raylib.LoadRenderTexture(_appWidth, _appHeight);
+            EditorConfig.CurrentTool = EditorTool.Drawing;
         }
 
         public void Run()
@@ -57,7 +59,7 @@
 
                     if (_hierarchyPanel.SelectedEntity != null)
                     {
-                        _gizmoTransform.Draw(_hierarchyPanel.SelectedEntity);
+                        _gizmoHighlighCell.Draw(_hierarchyPanel.SelectedEntity);
                     }
                 }
                 Raylib.EndTextureMode();
@@ -116,19 +118,26 @@
 
         void HandleEditorTools(Vector2 viewportPos)
         {
-            if (_hierarchyPanel.SelectedEntity != null)
+            if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
-                _gizmoTransform.Update(_hierarchyPanel.SelectedEntity, viewportPos);
-            }
-
-            else if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
+                // Logique de dessin
+                if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
+                {
+                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, viewportPos);
+                }
+            } 
+            else if (EditorConfig.CurrentTool == EditorTool.Selection)
             {
-                _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, viewportPos);
-            }
-            else
-            {
-                ImGui.SetCursorPos(new Vector2(10, 30));
-                ImGui.TextColored(new Vector4(1, 1, 0, 1), "Mode Selection: Cliquez sur une entité dans la hiérarchie.");
+                if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+                {
+                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(viewportPos);
+                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
+                    _hierarchyPanel.SelectedEntity = entity;
+                }
+                if (_hierarchyPanel.SelectedEntity != null)
+                {
+                    _gizmoHighlighCell.Update(_hierarchyPanel.SelectedEntity, viewportPos);
+                }
             }
         }
 
@@ -173,6 +182,17 @@
                 else
                 {
                     if (ImGui.MenuItem("Stop")) _currentState = EditorState.Editing;
+                }
+                
+                ImGui.Separator();
+                
+                if (EditorConfig.CurrentTool == EditorTool.Drawing)
+                {
+                    if (ImGui.MenuItem("Selection")) EditorConfig.CurrentTool = EditorTool.Selection;
+                }
+                else
+                {
+                    if (ImGui.MenuItem("Pinceau")) EditorConfig.CurrentTool = EditorTool.Drawing;
                 }
                 ImGui.EndMainMenuBar();
             }
