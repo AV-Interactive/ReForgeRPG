@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Text.Json.Serialization;
 using Raylib_cs;
+using ReForge.Engine.World.Behaviors;
 
 namespace ReForge.Engine.World;
 
@@ -44,6 +45,11 @@ public class Entity
         behavior.Owner = this;
         _behaviors.Add(behavior);
         behavior.Initialize();
+        
+        if (behavior is BoxCollider && GetBehavior<ActionTrigger>() == null)
+        {
+            AddBehavior(new ActionTrigger());
+        }
     }
 
     public void RemoveBehavior(Behavior behavior)

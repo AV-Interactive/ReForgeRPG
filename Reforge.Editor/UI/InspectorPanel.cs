@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Numerics;
 using ImGuiNET;
+using ReForge.Engine.Core;
 using ReForge.Engine.World;
 using ReForge.Engine.World.Behaviors;
 
@@ -125,6 +126,23 @@ public class InspectorPanel
                 string s = (string)value!;
                 if (ImGui.InputText(prop.Name, ref s, 128)) prop.SetValue(behavior, s);
             }
+            else if (prop.PropertyType == typeof(List<ActionCommand>))
+            {
+                var list = (List<ActionCommand>)value!;
+                if(ImGui.TreeNode($"Commandes de {prop.Name} ({list.Count})"))
+                {
+                    if (ImGui.Button($"+ Ajouter"))
+                    {
+                        list.Add(new ActionCommand());
+                    }
+
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        DrawActionCommandEditor(list[i], list, i);
+                    }
+                    ImGui.TreePop();
+                }
+            }
             
         }
         
@@ -158,11 +176,55 @@ public class InspectorPanel
         }
     }
 
+    void DrawActionCommandEditor(ActionCommand actionCommand, List<ActionCommand> list, int i)
+    {
+        string[] verbNames = Enum.GetNames(typeof(ActionVerb));
+        int currentVerbIndex = (int)actionCommand.Verb;
+
+        if (ImGui.Combo("Verbe", ref currentVerbIndex, verbNames, verbNames.Length))
+        {
+            actionCommand.Verb = (ActionVerb)currentVerbIndex;
+        }
+        
+        bool targetSelf = actionCommand.TargetSelf;
+        if (ImGui.Checkbox($"Cibler soi-même ##{i}", ref targetSelf))
+        {
+            actionCommand.TargetSelf = targetSelf;
+        }
+
+        if (!actionCommand.TargetSelf)
+        {
+            string tag = actionCommand.TargetTag;
+            if (ImGui.InputText($"Tag cible ##{i}", ref tag, 64))
+            {
+                actionCommand.TargetTag = tag;
+            }
+        }
+
+        switch (actionCommand.Verb)
+        {
+            case ActionVerb.Teleport:
+                Vector2 destination = actionCommand.Destination;
+                if(ImGui.DragFloat2($"Destination##{i}", ref destination))
+                {
+                    actionCommand.Destination = destination;
+                }
+                break;
+            case ActionVerb.Destroy:
+                break;
+            case ActionVerb.ToggleActive:
+                break;
+        }
+    }
+
     void RefreshBehaviorList()
     {
         _availableBehaviors = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(Behavior).IsAssignableFrom(p) && !p.IsAbstract && p != typeof(Behavior))
+            .Where(p => typeof(Behavior).IsAssignableFrom(p) 
+                        && !p.IsAbstract 
+                        && p != typeof(Behavior)
+                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null)
             .ToList();
     }
 }

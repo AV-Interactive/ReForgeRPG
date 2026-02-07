@@ -1,6 +1,7 @@
 namespace ReForge.Engine.World;
 using ReForge.Engine.Core;
 
+[HiddenBehavior]
 public class ActionTrigger: Behavior
 {
     public List<ActionCommand> OnEnterActions { get; set; } = new();
@@ -45,10 +46,16 @@ public class ActionTrigger: Behavior
     void Execute(ActionCommand command, Entity? entity = null)
     {
         Entity? target = (command.TargetSelf) ? Owner : entity;
+        if(target == null) return;
 
-        if (command.Verb == ActionVerb.Destroy)
+        switch (command.Verb)
         {
-            if (target != null) Engine.Instance.DestroyEntity(target);
+            case ActionVerb.Destroy:
+                Engine.Instance.CurrentScene.DestroyEntity(target);
+                break;
+            case ActionVerb.Teleport:
+                target.Position = command.Destination;
+                break;
         }
     }
 }
