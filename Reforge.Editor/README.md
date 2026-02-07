@@ -6,11 +6,11 @@ Bienvenue dans l'éditeur ReForge, l'outil de création de scènes pour le moteu
 
 L'interface est divisée en plusieurs panneaux dockables :
 
-1.  **Game View (Centre)** : La fenêtre principale où vous visualisez et éditez votre scène.
-2.  **Content Browser (Bas)** : Explorateur de fichiers pour vos assets (textures, etc.).
+1.  **Game View (Centre)** : Fenêtre principale où vous visualisez et éditez votre scène.
+2.  **Content Browser (Bas)** : Explorateur de fichiers pour vos assets (textures, etc.). Cliquez sur une texture pour la sélectionner.
 3.  **Hierarchy (Gauche)** : Liste toutes les entités présentes dans la scène actuelle.
 4.  **Inspector (Droite)** : Affiche et permet de modifier les propriétés de l'entité sélectionnée.
-5.  **Layer Control** : Permet de choisir sur quelle couche vous travaillez.
+5.  **Layer Control** : Panneau pour choisir la couche de travail active (Background, World, Foreground).
 
 ---
 
@@ -30,8 +30,8 @@ L'interface est divisée en plusieurs panneaux dockables :
 ### Sélection et Inspection
 1. Sélectionnez l'outil **Selection** dans la barre de menu.
 2. Cliquez sur une entité dans la **Game View** ou dans la **Hierarchy**.
-3. L'entité sélectionnée est mise en surbrillance.
-4. Modifiez ses propriétés (Position, ZIndex, etc.) directement dans l'**Inspector**.
+3. L'entité sélectionnée est mise en surbrillance par un Gizmo.
+4. Modifiez ses propriétés (Nom, Position, ZIndex, etc.) directement dans l'**Inspector**.
 
 ---
 

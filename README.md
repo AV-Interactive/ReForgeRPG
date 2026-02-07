@@ -13,20 +13,20 @@ Le projet est divisé en trois parties principales :
 ## 🛠️ Fonctionnalités
 
 ### ReForge.Engine (Moteur)
-- **Système d'Entités** : Gestion d'entités avec position, textures et profondeur (ZIndex).
-- **Gestion de Scènes** : Système de scènes permettant d'organiser les objets de jeu.
-- **Asset Manager** : Chargement et gestion centralisée des textures.
-- **Système de Collision** : Prise en charge des collisions de base (AABB).
-- **Rendu Performant** : Basé sur Raylib pour un rendu 2D efficace.
+- **Système d'Entités** : Gestion d'entités avec position, textures, tags et comportements (Behaviors).
+- **Gestion de Scènes** : Système de scènes permettant d'organiser et de mettre à jour les entités.
+- **Asset Manager** : Chargement et mise en cache centralisée des textures.
+- **Système de Collision** : Détection et résolution des collisions (AABB) avec support des Triggers et événements (Enter, Stay, Exit).
+- **Rendu Performant** : Basé sur Raylib, avec gestion du ZIndex pour la profondeur.
 
 ### Reforge.Editor (Éditeur)
 - **Map Painter** : Outil de peinture sur grille (Tile-based) pour créer des environnements.
 - **Système de Couches** : Gestion de la profondeur avec trois couches principales (Background, World, Foreground).
 - **Content Browser** : Explorateur d'assets pour importer et sélectionner des ressources.
-- **Hierarchy Panel** : Visualisation en temps réel des entités présentes dans la scène.
-- **Inspector** : Modification des propriétés des entités sélectionnées.
-- **Game View** : Aperçu interactif du jeu directement dans l'éditeur.
-- **Mode Play/Stop** : Basculement entre l'édition et l'exécution du jeu.
+- **Hierarchy Panel** : Visualisation en temps réel et sélection des entités de la scène.
+- **Inspector** : Modification dynamique des propriétés (Position, Nom, Tags, etc.) et visualisation des comportements.
+- **Game View** : Aperçu interactif utilisant des textures de rendu (RenderTexture).
+- **Mode Play/Stop** : Basculement instantané entre l'édition et la simulation physique.
 
 ## 💻 Technologies utilisées
 
