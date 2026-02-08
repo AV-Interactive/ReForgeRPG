@@ -11,7 +11,7 @@ public static class EntityFactory
     public static Entity CreateActor(Engine engine, Vector2 position, string texPath, string name, List<string> tag)
     {
         var tex = engine.AssetManager.GetTexture(texPath);
-        Entity playerEntity = new Entity(position, tex, name);
+        Entity playerEntity = new Entity(position, tex, name, texPath);
         
         foreach (var tagItem in tag) playerEntity.AddTag(tagItem);
         

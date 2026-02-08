@@ -42,7 +42,7 @@ public class ViewportPanel
 
         if (ImGui.Begin("Viewport", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
-            WindowPosition = ImGui.GetWindowPos();
+            WindowPosition = ImGui.GetCursorScreenPos();
             
             app.HandleEditorTools(WindowPosition);
 

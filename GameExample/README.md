@@ -39,6 +39,7 @@ La méthode `EntityFactory.CreateActor` centralise la configuration initiale :
 - Charge la texture via l' `AssetManager`.
 - Initialise l'entité avec son nom et ses tags.
 - Ajoute automatiquement un `BoxCollider` pour la gestion des collisions.
+- Définit le `TexturePath` pour permettre la sauvegarde/chargement via le `SceneSerializer`.
 
 ### 5. Gestion des collisions
 Grâce au `BoxCollider` ajouté par la factory, les entités peuvent interagir. La détection et la résolution des collisions (AABB) sont gérées automatiquement par le `CollisionSystem` du moteur.

@@ -6,7 +6,7 @@ ReForgeRPG est un moteur de jeu 2D accompagné de son éditeur, conçu pour faci
 
 Le projet est divisé en trois parties principales :
 
-- **[ReForge.Engine](./ReForge.Engine)** : Le cœur du moteur de jeu (Entités, Physiques, Scènes).
+- **[ReForge.Engine](./ReForge.Engine)** : Le cœur du moteur de jeu (Entités, Physiques, Scènes). (Consultez la [Documentation Technique](./ReForge.Engine/README.md))
 - **[Reforge.Editor](./Reforge.Editor)** : L'outil de création de scènes et de gestion d'assets. (Consultez le [Manuel d'utilisation](./Reforge.Editor/README.md))
 - **[GameExample](./GameExample)** : Un projet de démonstration utilisant le moteur.
 
