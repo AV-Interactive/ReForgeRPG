@@ -11,6 +11,7 @@ namespace Reforge.Editor.UI;
 public class ContentBrowser
 {
     public string SelectedAsset { get; set; } = "";
+    AssetType _currentType = AssetType.Actors;
 
     public void Draw(Engine engine, EditorContext ctx)
     {
@@ -20,58 +21,54 @@ public class ContentBrowser
 
         if (ImGui.Begin("Explorateur", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
-            string path = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory); 
-            string scenesPath = Path.Combine(path, ProjectManager.CurrentProject.SceneDirectory);
-
-            if (Directory.Exists(path))
+            if (ImGui.BeginTabBar("Ressources"))
             {
-                ImGui.TextColored(new Vector4(0, 1, 0, 1), "Assets");
-                
-                var pngFiles = Directory.GetFiles(path, "*.png");
-                for (int i = 0; i < pngFiles.Length; i++)
+                foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
                 {
-                    string file = pngFiles[i];
-                    string fileName = Path.GetFileName(file);
-
-                    ImGui.PushID(i); 
-
-                    if (ImGui.Selectable(fileName, SelectedAsset == file))
+                    if (ImGui.BeginTabItem(type.ToString()))
                     {
-                        SelectedAsset = file;
+                        _currentType = type;
+                        ImGui.EndTabItem();
                     }
-
-                    ImGui.PopID(); 
                 }
                 
-                ImGui.Separator();
-                
-                ImGui.TextColored(new Vector4(0, 1, 0, 1), "Scènes");
-
-                if (Directory.Exists(scenesPath))
+                string finalPath;
+                if (_currentType == AssetType.Scenes)
                 {
-                    var sceneFiles = Directory.GetFiles(scenesPath, "*.scn");
-                    for (int i = 0; i < sceneFiles.Length; i++)
+                    finalPath = Path.Combine(ProjectManager.ProjectRootPath,
+                        ProjectManager.CurrentProject.SceneDirectory);
+                }
+                else
+                {
+                    finalPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, _currentType.ToString());
+                }
+
+                if (Directory.Exists(finalPath))
+                {
+                    ImGui.BeginChild("AssetsList");
+                    string[] files = Directory.GetFiles(finalPath);
+                    foreach (string file in files)
                     {
-                        string file = sceneFiles[i];
                         string fileName = Path.GetFileName(file);
-
-                        ImGui.PushID(i); 
-
-                        if (ImGui.Selectable(fileName, SelectedAsset == file))
+                        string fileNameWhithoutExtension = Path.GetFileNameWithoutExtension(file);
+                        
+                        if (fileName.StartsWith(".")) continue;
+                        if (ImGui.Selectable(fileNameWhithoutExtension))
                         {
                             SelectedAsset = file;
                         }
-
-                        if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+                        
+                        //Scenes
+                        if (_currentType == AssetType.Scenes)
                         {
                             SceneSerializer.Load(engine.CurrentScene, engine, file);
                         }
-
-                        ImGui.PopID(); 
                     }
+                    ImGui.EndChild();
                 }
             }
-            else { ImGui.Text($"Dossier Assets non trouvé !"); }
+            
+            ImGui.EndTabBar();
         }
     
         ImGui.End();

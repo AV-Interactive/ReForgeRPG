@@ -37,6 +37,7 @@
             if (ProjectManager.TryLoadLastProject())
             {
                 Console.WriteLine($"Projet chargé : {ProjectManager.CurrentProject.ProjectName}");
+                Console.WriteLine($"Etat de IsSaved : {ProjectManager.IsSaved}");
             }
             else
             {

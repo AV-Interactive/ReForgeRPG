@@ -1,5 +1,15 @@
 namespace ReForge.Engine.Core;
 
+public enum AssetType
+{
+    Actors,
+    Decors,
+    Scenes,
+    VFX,
+    SFX,
+    Images
+}
+
 public class ProjectSettings
 {
     public string ProjectName { get; set; } = "Untitled";
