@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ReForge.Engine.Core;
+using ReForge.Engine.World;
 
 namespace ReForge.Engin.Core;
 
@@ -7,6 +8,8 @@ public static class ProjectManager
 {
     static string _configPath = Path.Combine(AppContext.BaseDirectory, "lastProjectPath.txt");
     public static ProjectSettings? CurrentProject { get; private set; }
+    public static string CurrentSceneName { get; set; }
+    public static Scene? CurrentScene { get; set; }
     public static string ProjectRootPath { get; private set; }
     public static bool IsSaved { get; set; } = false;
 
@@ -70,6 +73,7 @@ public static class ProjectManager
             string fullName = $"{CurrentProject.ProjectName}.reforge";
             string folderPath = Path.Combine(ProjectRootPath, "Projects", CurrentProject.ProjectName);
             Directory.CreateDirectory(folderPath);
+            ProjectRootPath = folderPath;
             string fullPath = Path.Combine(folderPath, $"{CurrentProject.ProjectName}.reforge");
             
 
@@ -78,11 +82,22 @@ public static class ProjectManager
 
             File.WriteAllText(fullPath, json);
             SaveLastProjectPath();
+            IsSaved = true;
             Console.WriteLine($"Projet sauvegardé avec le nom {fullName} ici : {fullPath}");
         }
         catch (Exception e)
         {
             Console.WriteLine($"Erreur lors de la sauvegarde du projet : {e.Message}");
         }
+    }
+
+    public static void SaveScene()
+    {
+        if (CurrentProject == null || string.IsNullOrEmpty(CurrentSceneName)) return;
+        string scenePath = Path.Combine(ProjectRootPath, "Projects", CurrentProject.ProjectName, CurrentProject.SceneDirectory);
+        Directory.CreateDirectory(scenePath);
+        string fullPath = Path.Combine(scenePath, $"{CurrentSceneName}.scn");
+        
+        SceneSerializer.Save(CurrentScene, fullPath);
     }
 }

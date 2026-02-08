@@ -10,9 +10,14 @@ namespace Reforge.Editor.UI;
 public class MenuBarPanel
 {
     bool _showSavePopup = false;
+    bool _showSaveScenePopup = false;
     string _projectNameBuffer = "";
-    public void Draw(Engine _engine, EditorContext ctx)
+    string _sceneNameBuffer = "";
+    Engine _engine;
+    
+    public void Draw(Engine engine, EditorContext ctx)
     {
+        _engine = engine;
         if (ImGui.BeginMainMenuBar())
         {
             if (ImGui.BeginMenu("Fichier"))
@@ -29,12 +34,24 @@ public class MenuBarPanel
                     }
                 }
                 
-                if (ImGui.MenuItem("Sauvegarder la Scène"))
+                if (ImGui.MenuItem("Sauvegarder la Scène actuelle"))
                 {
-                    string fullPath = Path.Combine(ProjectPaths.Scenes, "01.scn");
-                    SceneSerializer.Save(_engine.CurrentScene, fullPath);
+                    if (ProjectManager.IsSaved)
+                    {
+                        if (ProjectManager.CurrentScene != null)
+                        {
+                            ProjectManager.SaveScene();
+                        }
+                        else
+                        {
+                            _showSaveScenePopup = true;
+                        }
+                    }
+                    else
+                    {
+                        _showSavePopup = true;
+                    }
                 }
-                //if (ImGui.MenuItem("Quitter")) _running = false;
                 
                 ImGui.EndMenu();
             }
@@ -68,7 +85,13 @@ public class MenuBarPanel
         {
             ImGui.OpenPopup("Enregistrer le projet");
         }
+        if (_showSaveScenePopup) 
+        {
+            ImGui.OpenPopup("Enregistrer la Scene");
+        }
+        
         DrawSavePopup();
+        DrawSaveScenePopup();
     }
     
     void DrawSavePopup()
@@ -83,6 +106,29 @@ public class MenuBarPanel
                 ProjectManager.SaveProject();
                 _projectNameBuffer = "";
                 _showSavePopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Annuler")) ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+        }
+    }
+    
+    void DrawSaveScenePopup()
+    {
+        if (ImGui.BeginPopupModal("Enregistrer la Scene", ref _showSaveScenePopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Nommer la scène:");
+            ImGui.InputText("##_sceneNameBuffer", ref _sceneNameBuffer, 50);
+            if (ImGui.Button("Enregistrer"))
+            {
+                ProjectManager.CurrentSceneName = _sceneNameBuffer;
+                ProjectManager.CurrentScene = _engine.CurrentScene;
+                ProjectManager.SaveScene();
+                _sceneNameBuffer = "";
+                _showSaveScenePopup = false;
                 ImGui.CloseCurrentPopup();
             }
             

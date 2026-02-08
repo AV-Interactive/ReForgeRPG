@@ -21,7 +21,7 @@ public class ContentBrowser
         if (ImGui.Begin("Explorateur", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
             string path = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory); 
-            string scenesPath = Path.Combine(path, "Scenes");
+            string scenesPath = Path.Combine(path, ProjectManager.CurrentProject.SceneDirectory);
 
             if (Directory.Exists(path))
             {
