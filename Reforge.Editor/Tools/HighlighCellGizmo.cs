@@ -18,7 +18,7 @@ public class HighlighCellGizmo
             return;
         }
         
-        Vector2 relativeMousePos = Raylib.GetMousePosition() - viewportPos;
+        Vector2 relativeMousePos = ImGuiNET.ImGui.GetMousePos() - viewportPos;
         
         _isHovered = relativeMousePos.X >= selectedEntity.Position.X &&
                      relativeMousePos.X <  selectedEntity.Position.X + EditorConfig.GridSize &&

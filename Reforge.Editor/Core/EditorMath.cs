@@ -13,10 +13,8 @@ public static class EditorMath
         );
     }
 
-    public static Vector2 SnapToGridRelativePos(Vector2 position)
+    public static Vector2 SnapToGridRelativePos(Vector2 relativePosition)
     {
-        Vector2 mousePos = Raylib.GetMousePosition();
-        Vector2 relativeMousePos = mousePos - position;
-        return SnapToGrid(relativeMousePos);
+        return SnapToGrid(relativePosition);
     }
 }

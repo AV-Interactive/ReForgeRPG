@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Numerics;
 using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
 using ReForge.Engine.Core;
 using ReForge.Engine.World;
 using ReForge.Engine.World.Behaviors;
@@ -12,8 +14,14 @@ public class InspectorPanel
     List<Type> _availableBehaviors = new List<Type>();
     string newTag = "";
     
-    public void Draw(Entity? selectedEntity)
+    public void Draw(Entity? selectedEntity, EditorContext ctx)
     {
+        float windowWidth = Raylib.GetScreenWidth();
+        float posX = windowWidth - ctx.InspectorWidth;
+        
+        ImGui.SetNextWindowPos(new Vector2(posX, ctx.MenuBarHeight), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(ctx.InspectorWidth, Raylib.GetScreenHeight()), ImGuiCond.Always);
+        
         ImGui.Begin("Inspecteur");
         if (selectedEntity == null)
         {

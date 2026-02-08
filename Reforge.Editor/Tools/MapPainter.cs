@@ -15,7 +15,7 @@ public class MapPainter
     bool _hasPreview;
     string _lastAsset = string.Empty;
     
-    public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 viewportScreenPos)
+    public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 relativeMousePos)
     {
         if (string.IsNullOrEmpty(selectedAsset))
         {
@@ -24,9 +24,6 @@ public class MapPainter
             return;
         }
         
-        Vector2 mousePos = ImGui.GetMousePos();
-        Vector2 relativeMousePos = mousePos - viewportScreenPos;
-
         Vector2 snappedPos = EditorMath.SnapToGrid(relativeMousePos);
         
         _lastSnappedPos = snappedPos;

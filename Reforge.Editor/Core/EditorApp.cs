@@ -14,16 +14,17 @@
         const int _appWidth = 1280;
         const int _appHeight = 720;
         Engine _engine;
-        RenderTexture2D _viewportRes;
         bool _running = true;
         int _currentLayer = 0;
         
         public enum EditorState {Editing, Playing};
         EditorState _currentState = EditorState.Editing;
         
-        ContentBrowser _contentBrowser = new ContentBrowser();
         MapPainter _mapPainter = new MapPainter();
+        ViewportPanel _viewportPanel = new ViewportPanel();
+        ContentBrowser _contentBrowser = new ContentBrowser();
         HierarchyPanel _hierarchyPanel = new HierarchyPanel();
+        LayerPanel _layerPanel = new LayerPanel();
         InspectorPanel _inspectorPanel = new InspectorPanel();
         HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
         EditorSelector _editorSelector = new EditorSelector();
@@ -32,13 +33,11 @@
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
             _engine.Initialize();
-            _viewportRes = Raylib.LoadRenderTexture(_appWidth, _appHeight);
             EditorConfig.CurrentTool = EditorTool.Drawing;
         }
 
         public void Run()
         {
-            
             rlImGui.Setup();
             while(_running && !Raylib.WindowShouldClose())
             {
@@ -48,21 +47,6 @@
                 {
                     _engine.Update(deltaTime);
                 }
-        
-                Raylib.BeginTextureMode(_viewportRes);
-                _engine.Render();
-
-                if (_currentState == EditorState.Editing)
-                {
-                    _mapPainter.DrawPreview(_engine);
-                    _mapPainter.DrawGrid(_viewportRes);
-
-                    if (_hierarchyPanel.SelectedEntity != null)
-                    {
-                        _gizmoHighlighCell.Draw(_hierarchyPanel.SelectedEntity);
-                    }
-                }
-                Raylib.EndTextureMode();
         
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Color.DarkGray);
@@ -80,57 +64,56 @@
         void DrawUI()
         {
             ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
-            DrawMenuBar();
-
-            // Affichage des panneaux
-            _contentBrowser.Draw(_engine);
-            _hierarchyPanel.Draw(_engine.CurrentScene.Entities);
-            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity);
-            DrawLayerControl();
-
-            // Fenêtre de visualisation du jeu
-            ImGui.Begin("Game View");
             
-            Vector2 viewportPos = ImGui.GetCursorScreenPos();
-            HandleViewportResizing();
-
-            Vector2 regionMax = ImGui.GetContentRegionAvail();
-            ImGui.Image((IntPtr)_viewportRes.Texture.Id, regionMax, new Vector2(0, 1), new Vector2(1, 0));
-
-            // Logique des outils (Priorité au Gizmo sur le Pinceau)
-            HandleEditorTools(viewportPos);
-
-            ImGui.End();
-        }
-
-        void HandleViewportResizing()
-        {
-            Vector2 regionMax = ImGui.GetContentRegionAvail();
-            if (regionMax.X != _viewportRes.Texture.Width || regionMax.Y != _viewportRes.Texture.Height)
+            DrawMenuBar();
+            
+            // Calcule du pourcentage pour l'inspecteur
+            float windowWidth = Raylib.GetScreenWidth();
+            float sidebarWidth = Math.Max(windowWidth * 0.15f, 200f);   // 15% ou 200px min
+            float inspectorWidth = Math.Max(windowWidth * 0.20f, 300f);
+            
+            // Assignation du contexte
+            var ctx = new EditorContext
             {
-                if (regionMax.X > 0 && regionMax.Y > 0)
-                {
-                    Raylib.UnloadRenderTexture(_viewportRes);
-                    _viewportRes = Raylib.LoadRenderTexture((int)regionMax.X, (int)regionMax.Y);
-                }
-            }
+                State = _currentState,
+                CurrentLayer = _currentLayer,
+                MapPainter = _mapPainter,
+                Hierarchy = _hierarchyPanel,
+                Gizmo = _gizmoHighlighCell,
+                ContentBrowser = _contentBrowser,
+                SidebarWidth = sidebarWidth, 
+                InspectorWidth = inspectorWidth,
+                MenuBarHeight = ImGui.GetFrameHeightWithSpacing()
+            };
+            
+            // Affichage des panneaux
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, ctx);
+            _contentBrowser.Draw(_engine, ctx);
+            _layerPanel.Draw(ctx);
+            _viewportPanel.Draw(_engine, ctx, this);
+            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity, ctx);
+            
+            _currentLayer = ctx.CurrentLayer;
         }
 
-        void HandleEditorTools(Vector2 viewportPos)
+        public void HandleEditorTools(Vector2 viewportPos)
         {
+            Vector2 mousePos = ImGui.GetMousePos();
+            Vector2 relativeMousePos = mousePos - viewportPos;
+            
             if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
                 // Logique de dessin
                 if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
                 {
-                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, viewportPos);
+                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
                 }
             } 
             else if (EditorConfig.CurrentTool == EditorTool.Selection)
             {
-                if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(viewportPos);
+                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
                     Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
                     _hierarchyPanel.SelectedEntity = entity;
                 }
@@ -140,19 +123,9 @@
                 }
             }
         }
-
-        void DrawLayerControl()
-        {
-            ImGui.Begin("Layer Control");
-            ImGui.RadioButton("Background", ref _currentLayer, 0);
-            ImGui.RadioButton("World", ref _currentLayer, 1);
-            ImGui.RadioButton("Foreground", ref _currentLayer, 2);
-            ImGui.End();
-        }
         
         void Cleanup()
         {
-            Raylib.UnloadRenderTexture(_viewportRes);
             _engine.CleanUp();
         }
         
