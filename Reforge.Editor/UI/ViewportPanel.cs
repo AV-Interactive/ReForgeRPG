@@ -2,7 +2,6 @@ using System.Numerics;
 using ImGuiNET;
 using Raylib_cs;
 using Reforge.Editor.Core;
-using Reforge.Editor.Tools;
 using ReForge.Engine.Core;
 
 namespace Reforge.Editor.UI;

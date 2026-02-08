@@ -5,6 +5,7 @@
     using System.Numerics;
     using Reforge.Editor.Tools;
     using Reforge.Editor.UI;
+    using ReForge.Engin.Core;
     using ReForge.Engine.World;
 
     namespace Reforge.Editor.Core;
@@ -28,10 +29,20 @@
         InspectorPanel _inspectorPanel = new InspectorPanel();
         HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
         EditorSelector _editorSelector = new EditorSelector();
+        MenuBarPanel _menuBar = new MenuBarPanel();
 
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
+            if (ProjectManager.TryLoadLastProject())
+            {
+                Console.WriteLine($"Projet chargé : {ProjectManager.CurrentProject.ProjectName}");
+            }
+            else
+            {
+                Console.WriteLine($"Aucun projet précédent trouvé ou erreur lors du chargement.");
+                ProjectManager.CreateEmptyTemporaryProject();
+            }
             _engine.Initialize();
             EditorConfig.CurrentTool = EditorTool.Drawing;
         }
@@ -65,8 +76,6 @@
         {
             ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
             
-            DrawMenuBar();
-            
             // Calcule du pourcentage pour l'inspecteur
             float windowWidth = Raylib.GetScreenWidth();
             float sidebarWidth = Math.Max(windowWidth * 0.15f, 200f);   // 15% ou 200px min
@@ -87,6 +96,7 @@
             };
             
             // Affichage des panneaux
+            _menuBar.Draw(_engine, ctx);
             _hierarchyPanel.Draw(_engine.CurrentScene.Entities, ctx);
             _contentBrowser.Draw(_engine, ctx);
             _layerPanel.Draw(ctx);
@@ -127,47 +137,5 @@
         void Cleanup()
         {
             _engine.CleanUp();
-        }
-        
-        void DrawMenuBar()
-        {
-            if (ImGui.BeginMainMenuBar())
-            {
-                if (ImGui.BeginMenu("Fichier"))
-                {
-                    if (ImGui.MenuItem("Sauvegarder la Scène"))
-                    {
-                        string fullPath = Path.Combine(ProjectPaths.Scenes, "01.json");
-                        SceneSerializer.Save(_engine.CurrentScene, fullPath);
-                    }
-                    if (ImGui.MenuItem("Quitter")) _running = false;
-                
-                    ImGui.EndMenu();
-                }
-                
-                ImGui.Separator();
-                
-                
-                if (_currentState == EditorState.Editing)
-                {
-                    if (ImGui.MenuItem("Play")) _currentState = EditorState.Playing;
-                }
-                else
-                {
-                    if (ImGui.MenuItem("Stop")) _currentState = EditorState.Editing;
-                }
-                
-                ImGui.Separator();
-                
-                if (EditorConfig.CurrentTool == EditorTool.Drawing)
-                {
-                    if (ImGui.MenuItem("Selection")) EditorConfig.CurrentTool = EditorTool.Selection;
-                }
-                else
-                {
-                    if (ImGui.MenuItem("Pinceau")) EditorConfig.CurrentTool = EditorTool.Drawing;
-                }
-                ImGui.EndMainMenuBar();
-            }
         }
     }

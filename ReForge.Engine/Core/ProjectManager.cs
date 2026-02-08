@@ -1,0 +1,88 @@
+using System.Text.Json;
+using ReForge.Engine.Core;
+
+namespace ReForge.Engin.Core;
+
+public static class ProjectManager
+{
+    static string _configPath = Path.Combine(AppContext.BaseDirectory, "lastProjectPath.txt");
+    public static ProjectSettings? CurrentProject { get; private set; }
+    public static string ProjectRootPath { get; private set; }
+    public static bool IsSaved { get; set; } = false;
+
+    public static bool LoadProject(string filePath)
+    {
+        if (!File.Exists(filePath)) return false;
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            CurrentProject = JsonSerializer.Deserialize<ProjectSettings>(json);
+
+            if (CurrentProject != null)
+            {
+                ProjectRootPath = Path.GetDirectoryName(filePath) ?? "";
+                return true;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erreur lors du chargement du projet : {e.Message}");
+        }
+        return false;
+    }
+    
+    public static void SaveLastProjectPath()
+    {
+        File.WriteAllText(_configPath, ProjectRootPath);
+    }
+
+    public static bool TryLoadLastProject()
+    {
+        if (File.Exists(_configPath))
+        {
+            string path = File.ReadAllText(_configPath);
+            return LoadProject(path);
+        }
+        return false;
+    }
+
+    public static void CreateEmptyTemporaryProject()
+    {
+        CurrentProject = new ProjectSettings
+        {
+            ProjectName = "Nouveau Projet",
+            AssetDirectory = "Assets",
+            StartScenePath = "Scenes/StartScene.scn"
+        };
+        
+        ProjectRootPath = AppContext.BaseDirectory;
+        
+        Directory.CreateDirectory(Path.Combine(ProjectRootPath, CurrentProject.AssetDirectory));
+    }
+
+    public static void SaveProject()
+    {
+        if (CurrentProject == null) return;
+
+        try
+        {
+            string fullName = $"{CurrentProject.ProjectName}.reforge";
+            string folderPath = Path.Combine(ProjectRootPath, "Projects", CurrentProject.ProjectName);
+            Directory.CreateDirectory(folderPath);
+            string fullPath = Path.Combine(folderPath, $"{CurrentProject.ProjectName}.reforge");
+            
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(CurrentProject, options);
+
+            File.WriteAllText(fullPath, json);
+            SaveLastProjectPath();
+            Console.WriteLine($"Projet sauvegardé avec le nom {fullName} ici : {fullPath}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erreur lors de la sauvegarde du projet : {e.Message}");
+        }
+    }
+}

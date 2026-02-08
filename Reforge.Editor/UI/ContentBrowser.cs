@@ -2,6 +2,7 @@ using System.Numerics;
 using ImGuiNET;
 using Raylib_cs;
 using Reforge.Editor.Core;
+using ReForge.Engin.Core;
 using ReForge.Engine.Core;
 using rlImGui_cs;
 
@@ -19,8 +20,7 @@ public class ContentBrowser
 
         if (ImGui.Begin("Explorateur", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
-            
-            string path = Path.Combine(AppContext.BaseDirectory, "Assets"); 
+            string path = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory); 
             string scenesPath = Path.Combine(path, "Scenes");
 
             if (Directory.Exists(path))
@@ -49,7 +49,7 @@ public class ContentBrowser
 
                 if (Directory.Exists(scenesPath))
                 {
-                    var sceneFiles = Directory.GetFiles(scenesPath, "*.json");
+                    var sceneFiles = Directory.GetFiles(scenesPath, "*.scn");
                     for (int i = 0; i < sceneFiles.Length; i++)
                     {
                         string file = sceneFiles[i];
