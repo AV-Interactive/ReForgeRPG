@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReForge.Engine", "ReForge.Engine\ReForge.Engine.csproj", "{59CA65B0-1A24-45BB-AEF3-ED1E2B2CB139}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameExample", "GameExample\GameExample.csproj", "{30EC659C-C97F-469A-9840-9CCBDC3AB50D}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reforge.Editor", "Reforge.Editor\Reforge.Editor.csproj", "{898021CC-9F72-4422-A48A-390BF5CA102D}"
 EndProject
 Global
@@ -16,10 +14,6 @@ Global
 		{59CA65B0-1A24-45BB-AEF3-ED1E2B2CB139}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{59CA65B0-1A24-45BB-AEF3-ED1E2B2CB139}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{59CA65B0-1A24-45BB-AEF3-ED1E2B2CB139}.Release|Any CPU.Build.0 = Release|Any CPU
-		{30EC659C-C97F-469A-9840-9CCBDC3AB50D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{30EC659C-C97F-469A-9840-9CCBDC3AB50D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{30EC659C-C97F-469A-9840-9CCBDC3AB50D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{30EC659C-C97F-469A-9840-9CCBDC3AB50D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{898021CC-9F72-4422-A48A-390BF5CA102D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{898021CC-9F72-4422-A48A-390BF5CA102D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{898021CC-9F72-4422-A48A-390BF5CA102D}.Release|Any CPU.ActiveCfg = Release|Any CPU

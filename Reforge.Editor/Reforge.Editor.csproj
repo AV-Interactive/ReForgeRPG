@@ -23,13 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Assets\enemy.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Assets\player.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Assets\pnj.png">
+      <None Update="Assets\**\*.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
