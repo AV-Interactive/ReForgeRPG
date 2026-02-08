@@ -65,6 +65,7 @@ public static class CollisionSystem
                             else 
                                 newPos.Y += overlap.Height;
                         }
+                        entA.Position = newPos;
                     }
                 }
             }

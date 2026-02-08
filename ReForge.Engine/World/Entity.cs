@@ -43,13 +43,16 @@ public class Entity
     public void AddBehavior(Behavior behavior)
     {
         behavior.Owner = this;
-        _behaviors.Add(behavior);
-        behavior.Initialize();
         
         if (behavior is BoxCollider && GetBehavior<ActionTrigger>() == null)
         {
-            AddBehavior(new ActionTrigger());
+            var trigger = new ActionTrigger();
+            trigger.Owner = this;
+            AddBehavior(trigger);
         }
+        
+        _behaviors.Add(behavior);
+        behavior.Initialize();
     }
 
     public void RemoveBehavior(Behavior behavior)

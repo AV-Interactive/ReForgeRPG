@@ -10,6 +10,7 @@ namespace Reforge.Editor.UI;
 public class InspectorPanel
 {
     List<Type> _availableBehaviors = new List<Type>();
+    string newTag = "";
     
     public void Draw(Entity? selectedEntity)
     {
@@ -27,6 +28,30 @@ public class InspectorPanel
         Vector2 pos = selectedEntity.Position;
         if (ImGui.DragFloat2("Position", ref pos)) selectedEntity.Position = pos;
         
+        ImGui.Text($"Tags:");
+        int tagToRemove = -1;
+        for (int i = 0; i < selectedEntity.Tags.Count; i++)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button($"{selectedEntity.Tags[i]}##{i}"))
+            {
+                tagToRemove = i;
+            }
+        }
+
+        if (tagToRemove != -1)
+        {
+            selectedEntity.Tags.RemoveAt(tagToRemove);
+        }
+        
+        ImGui.InputText("##NewTag", ref newTag, 32);
+        ImGui.SameLine();
+        if (ImGui.Button("+"))
+        {
+            selectedEntity.AddTag(newTag);
+            newTag = "";
+        }
+
         ImGui.Separator();
         ImGui.Text("Comportements");
         Behavior? behaviorToRemove = null;
@@ -194,6 +219,8 @@ public class InspectorPanel
 
         if (!actionCommand.TargetSelf)
         {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Ciblage Global par Tag");
+            
             string tag = actionCommand.TargetTag;
             if (ImGui.InputText($"Tag cible ##{i}", ref tag, 64))
             {

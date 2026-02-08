@@ -23,14 +23,13 @@ public class ActionTrigger: Behavior
 
     public override void OnReceivedEvent(string eventName, object? data = null)
     {
+        Entity? entity = data as Entity;
+        
         if (eventName == "OnCollisionEnter")
         {
             foreach (var action in OnEnterActions)
             {
-                if (action.TargetSelf)
-                {
-                    Execute(action);
-                }
+                Execute(action, entity);
             }
         }
 
@@ -45,17 +44,34 @@ public class ActionTrigger: Behavior
 
     void Execute(ActionCommand command, Entity? entity = null)
     {
-        Entity? target = (command.TargetSelf) ? Owner : entity;
-        if(target == null) return;
+        List<Entity> targets = new();
 
-        switch (command.Verb)
+        if (command.TargetSelf)
         {
-            case ActionVerb.Destroy:
-                Engine.Instance.CurrentScene.DestroyEntity(target);
-                break;
-            case ActionVerb.Teleport:
-                target.Position = command.Destination;
-                break;
+            targets.Add(Owner);
+        }
+        else if (!string.IsNullOrEmpty(command.TargetTag))
+        {
+            var found = Engine.Instance.CurrentScene.Entities
+                .Where(e => e.HasTag(command.TargetTag.Trim()));
+            targets.AddRange(found);
+        }
+        else if (entity != null)
+        {
+            targets.Add(entity);
+        }
+
+        foreach (var target in targets)
+        {
+            switch (command.Verb)
+            {
+                case ActionVerb.Destroy:
+                    Engine.Instance.CurrentScene.DestroyEntity(target);
+                    break;
+                case ActionVerb.Teleport:
+                    target.Position = command.Destination;
+                    break;
+            }
         }
     }
 }

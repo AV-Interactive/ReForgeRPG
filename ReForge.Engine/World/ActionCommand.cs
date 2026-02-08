@@ -14,6 +14,6 @@ public class ActionCommand
 {
     public ActionVerb Verb { get; set; }
     public string TargetTag { get; set; } = "";
-    public bool TargetSelf { get; set; } = true;
+    public bool TargetSelf { get; set; } = false;
     public Vector2 Destination { get; set; }
 }

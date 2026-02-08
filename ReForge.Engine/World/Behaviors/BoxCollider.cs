@@ -14,10 +14,12 @@ public class BoxCollider: Behavior
     
     public Rectangle Bounds => new Rectangle(Owner.Position.X, Owner.Position.Y, Width, Height);
 
-    public void Initialize()
+    public override void Initialize()
     {
-        OnCollisionEnter += (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
-        OnCollisionExit += (target) => Owner.BroadcastEvent("OnCollisionExit", target);
+        /*OnCollisionEnter += (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
+        OnCollisionExit += (target) => Owner.BroadcastEvent("OnCollisionExit", target);*/
+        OnCollisionEnter = (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
+        OnCollisionExit = (target) => Owner.BroadcastEvent("OnCollisionExit", target);
     }
     
     public override void Update(float deltaTime)
