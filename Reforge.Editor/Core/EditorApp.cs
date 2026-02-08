@@ -103,7 +103,8 @@
             _layerPanel.Draw(ctx);
             _viewportPanel.Draw(_engine, ctx, this);
             _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity, ctx);
-            
+
+            _currentState = ctx.State;
             _currentLayer = ctx.CurrentLayer;
         }
 

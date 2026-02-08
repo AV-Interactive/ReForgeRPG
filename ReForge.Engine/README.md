@@ -14,12 +14,14 @@ Le moteur suit une approche orientée objets avec un système de composants simp
 ### World (Monde)
 - **Scene** : Contient et gère le cycle de vie des entités.
 - **Entity** : L'objet de base du jeu. Chaque entité possède :
-    - Une position, une texture et un ZIndex (profondeur).
+    - Un **TransformComponent** (Position automatique).
+    - Une texture et un ZIndex (profondeur).
     - Des **Tags** pour l'identification.
     - Une liste de **Behaviors**.
 - **Behavior** : Classe de base pour ajouter de la logique aux entités.
     - `Update(float deltaTime)` : Appelée à chaque frame.
     - `OnCollisionEnter/Stay/Exit` : Événements de physique.
+- **TransformComponent** : Gère la position de l'entité. Ajouté automatiquement à chaque entité.
 
 ### Physics (Physique)
 - **CollisionSystem** : Gère la détection globale des collisions.
@@ -34,7 +36,7 @@ var engine = new Engine(1280, 720, "Mon Jeu");
 engine.Initialize();
 
 // 2. Création d'une entité
-var player = new Entity(new Vector2(100, 100), "assets/player.png", "Joueur");
+var player = new Entity(new Vector2(100, 100), engine.AssetManager.GetTexture("assets/player.png"), "Joueur", "assets/player.png");
 player.AddBehavior(new BoxCollider());
 player.AddBehavior(new InputMovable());
 

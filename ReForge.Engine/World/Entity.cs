@@ -2,13 +2,18 @@ using System.Numerics;
 using System.Text.Json.Serialization;
 using Raylib_cs;
 using ReForge.Engine.World.Behaviors;
+using ReForge.Engine.World.Components;
 
 namespace ReForge.Engine.World;
 
 public class Entity
 {
     public string Name { get; set; } = "Nouvel element";
-    public Vector2 Position { get; set;}
+    public Vector2 Position 
+    {
+        get => GetBehavior<TransformComponent>().Position;
+        set => GetBehavior<TransformComponent>().Position = value;
+    }
     public int ZIndex { get; set; } = 0;
     public string TexturePath { get; set; } = "";
 
@@ -23,8 +28,13 @@ public class Entity
         get => _behaviors;
         set => _behaviors = value;
     }
+
+    public Entity()
+    {
+        AddBehavior(new TransformComponent());
+    }
     
-    public Entity() { }
+    public TransformComponent Transform => GetBehavior<TransformComponent>();
 
     [JsonIgnore]
     public Texture2D Texture { get; set; }
@@ -32,7 +42,7 @@ public class Entity
     List<Behavior> _behaviors = new List<Behavior>();
     List<string> _tags = new List<string>();
 
-    public Entity(Vector2 position, Texture2D texture, string name, string texturePath)
+    public Entity(Vector2 position, Texture2D texture, string name, string texturePath) : this()
     {
         Position = position;
         Texture = texture;

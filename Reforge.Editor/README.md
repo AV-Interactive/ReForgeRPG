@@ -20,6 +20,7 @@ L'interface est divisée en plusieurs panneaux dockables :
 - **Fichier > Sauvegarder la Scène** : Enregistre l'état actuel de la scène dans un fichier JSON.
 - **Play / Stop** : Bascule entre le mode édition et le mode test (exécution des comportements/physiques).
 - **Pinceau / Selection** : Alterne entre l'outil de dessin et l'outil de sélection d'entités.
+- **Toggle State** : L'éditeur synchronise désormais l'état Playing/Editing entre le bouton et le moteur.
 
 ### Utilisation du Pinceau (Map Painter)
 1. Sélectionnez l'outil **Pinceau** dans la barre de menu.
