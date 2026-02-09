@@ -23,9 +23,15 @@ L'interface est divisée en plusieurs panneaux dockables :
 
 ### Le Map Painter (Pinceau)
 1. Sélectionnez une texture dans le **Content Browser**.
-2. Assurez-vous d'être en mode **Pinceau**.
-3. Choisissez une couche dans le **Layer Control**.
-4. Cliquez dans le **Viewport** pour placer l'objet. Le placement est automatiquement aligné sur une grille de 32x32 pixels.
+2. Assurez-vous d'être en mode **Pinceau** (raccourci `B`).
+3. Dans la barre de menu, choisissez le mode : **Pinceau** (un par un) ou **Rectangle** (remplissage).
+4. Choisissez une couche dans le **Layer Control**.
+5. Cliquez dans le **Viewport** pour placer l'objet. Le placement est automatiquement aligné sur une grille de 32x32 pixels.
+
+### Sélection et Manipulation
+1. Passez en mode **Selection** (raccourci `S`).
+2. Cliquez sur un objet pour le sélectionner. Utilisez `Ctrl + Clic` pour la **sélection multiple**.
+3. Déplacez les objets directement via le Gizmo ou modifiez les valeurs dans l'Inspecteur.
 
 ## 3. L'Inspecteur de Comportements
 

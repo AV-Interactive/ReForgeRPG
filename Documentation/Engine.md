@@ -21,9 +21,18 @@ Un `Behavior` est une classe abstraite qui permet d'ajouter de la logique à une
 - `BoxCollider` : Gère les collisions AABB et les triggers.
 - `InputMovable` : Permet de déplacer l'entité avec les touches directionnelles.
 - `Oscillator` : Fait osciller l'entité de manière sinusoïdale.
+- `Velocity` : Ajoute une gestion de vitesse vectorielle.
+- `Follow` : L'entité suit une cible identifiée par un Tag spécifique.
 - `ActionTrigger` : Exécute des commandes (`ActionCommand`) lors d'événements de collision.
 
-## 3. Physique et Collisions (`CollisionSystem`)
+## 3. Tilemaps et Couches (`Tilemap`)
+
+Le moteur supporte un système de `Tilemap` pour les décors :
+- **TileLayer** : Chaque couche de tuiles contient une matrice d'IDs.
+- **Gestion des couches** : Une Tilemap peut contenir plusieurs couches (Sol, Détails, Obstacles).
+- **Rendu optimisé** : Seules les tuiles visibles et nécessaires sont dessinées, avec support des collisions par couche.
+
+## 4. Physique et Collisions (`CollisionSystem`)
 
 Le système de physique est géré de manière globale par le `CollisionSystem` :
 1. **Détection** : Utilise Raylib pour vérifier les chevauchements de rectangles (`Rectangle`) via l'algorithme AABB.
@@ -31,15 +40,19 @@ Le système de physique est géré de manière globale par le `CollisionSystem` 
 3. **Événements** : Déclenche les méthodes `OnCollisionEnter`, `OnCollisionStay`, et `OnCollisionExit` sur les `Behavior` concernés.
 4. **ActionTrigger** : Un composant spécial qui s'ajoute automatiquement lors de l'ajout d'un `BoxCollider`. Il permet de lier des actions (téléportation, destruction, sons) aux événements de collision sans écrire de code.
 
-## 4. Gestion des Scènes et Sérialisation
+## 5. Gestion des Projets et Sérialisation
 
-Une `Scene` contient une liste d'entités organisées par couches.
+Le `ProjectManager` centralise la gestion du projet :
+- **Fichiers `.reforge`** : Contiennent les paramètres du projet (chemins, scène de démarrage).
+- **Gestion des Assets** : Organise les dossiers par types (Actors, Scenes, VFX, etc.).
+- **Persistance** : Sauvegarde automatique du dernier projet ouvert.
+
 Le `SceneSerializer` utilise `System.Text.Json` (introduit dans .NET 10) pour sauvegarder l'état complet d'un niveau.
 - **Support Polymorphique** : Tous les types de `Behavior` sont correctement sérialisés et désérialisés.
 - **Récupération des Assets** : Les textures sont rechargées via l'`AssetManager` en utilisant le chemin stocké (`TexturePath`).
 - **Persistance** : Permet de sauvegarder l'état exact (positions, variables des comportements) pour une reprise immédiate.
 
-## 5. Cycle de Vie du Moteur
+## 6. Cycle de Vie du Moteur
 
 Le `Engine` centralise la boucle de jeu :
 1. `Update` :

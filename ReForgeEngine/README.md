@@ -8,6 +8,7 @@ Le moteur suit une approche orientée objets avec un système de composants simp
 
 ### Core
 - **Engine** : Classe principale qui orchestre l'initialisation, la boucle de jeu (`Update`/`Draw`) et le nettoyage.
+- **ProjectManager** : Gère la structure des projets, les chemins d'assets et la persistance globale.
 - **AssetManager** : Gère le chargement et la mise en cache des textures pour éviter les fuites de mémoire et optimiser les performances.
 - **SceneSerializer** : Système de sauvegarde et chargement de scènes au format JSON avec support du polymorphisme pour les Behaviors.
 
@@ -18,9 +19,17 @@ Le moteur suit une approche orientée objets avec un système de composants simp
     - Une texture et un ZIndex (profondeur).
     - Des **Tags** pour l'identification.
     - Une liste de **Behaviors**.
+- **Tilemap** : Système de rendu par tuiles optimisé supportant plusieurs couches (`TileLayer`).
 - **Behavior** : Classe de base pour ajouter de la logique aux entités.
     - `Update(float deltaTime)` : Appelée à chaque frame.
     - `OnCollisionEnter/Stay/Exit` : Événements de physique.
+    - `OnReceivedEvent` : Communication inter-comportements.
+- **Comportements intégrés** :
+    - `BoxCollider` : Physique et triggers.
+    - `InputMovable` : Déplacement clavier.
+    - `Oscillator` : Mouvement sinusoïdal.
+    - `Velocity` : Gestion vectorielle de la vitesse.
+    - `Follow` : Suivi d'une cible (Tag).
 - **TransformComponent** : Gère la position de l'entité. Ajouté automatiquement à chaque entité.
 - **ActionTrigger** : Permet de déclencher des événements spécifiques lors d'interactions ou d'états de jeu.
 

@@ -28,11 +28,12 @@ Le projet est divisé en trois parties principales :
 - **Sérialisation** : Sauvegarde et chargement des scènes au format JSON (via `System.Text.Json`).
 
 ### ReforgeEditor (Éditeur)
-- **Map Painter** : Outil de peinture sur grille (Tile-based) pour créer des environnements.
+- **Map Painter** : Outil de peinture sur grille (Tile-based) avec modes **Pinceau** et **Rectangle**.
+- **Gestion de Projets** : Système de `ProjectManager` pour sauvegarder et charger des projets complets (`.reforge`).
 - **Système de Couches** : Gestion de la profondeur avec trois couches principales (Background, World, Foreground).
-- **Content Browser** : Explorateur d'assets pour importer et sélectionner des ressources.
-- **Hierarchy Panel** : Visualisation en temps réel et sélection des entités de la scène.
-- **Inspector** : Modification dynamique des propriétés (Position, Nom, Tags, etc.) et visualisation des comportements.
+- **Content Browser** : Explorateur d'assets pour importer et sélectionner des ressources par type.
+- **Hierarchy Panel** : Visualisation en temps réel et sélection multiple d'entités.
+- **Inspector** : Modification dynamique des propriétés (Position, Nom, Tags, etc.) et configuration visuelle des comportements.
 - **Game View** : Aperçu interactif utilisant des textures de rendu (RenderTexture).
 - **Mode Play/Stop** : Basculement instantané entre l'édition et la simulation physique.
 

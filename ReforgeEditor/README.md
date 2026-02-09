@@ -21,13 +21,15 @@ L'interface est divisée en plusieurs panneaux dockables :
 - **Fichier > Sauvegarder la Scène** : Enregistre l'état actuel de la scène dans un fichier JSON.
 - **Play / Stop** : Bascule entre le mode édition (Editing) et le mode test (Playing). Les modifications physiques et les comportements ne sont actifs qu'en mode Play.
 - **Pinceau (B) / Selection (S)** : Alterne entre l'outil de dessin et l'outil de sélection d'entités.
+- **Modes de peinture** : Dans le menu, vous pouvez alterner entre le mode **Pinceau** (un par un) et le mode **Rectangle** (remplissage de zone).
 - **Toggle State** : Synchronisation de l'état Playing/Editing entre l'interface et le moteur.
 
 ### Utilisation du Pinceau (Map Painter)
 1. Sélectionnez l'outil **Pinceau** (raccourci `B`).
 2. Dans le **Content Browser**, cliquez sur une texture pour la sélectionner.
 3. Choisissez le calque cible dans **Layer Control**.
-4. Cliquez (ou maintenez le clic) dans la **Game View** pour placer l'asset sur la grille (calé sur 32x32 par défaut).
+4. **Mode Pinceau** : Cliquez (ou maintenez le clic) dans la **Game View** pour placer l'asset sur la grille (calé sur 32x32 par défaut).
+5. **Mode Rectangle** : Cliquez pour définir le point de départ, maintenez et relâchez pour remplir la zone rectangulaire avec l'asset sélectionné.
 
 ### Sélection et Inspection
 1. Sélectionnez l'outil **Selection** (raccourci `S`).
