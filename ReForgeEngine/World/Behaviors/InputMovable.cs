@@ -6,17 +6,29 @@ namespace ReForge.Engine.World.Behaviors;
 public class InputMovable: Behavior
 {
     public float Speed { get; set; } = 250f;
+    public float Acceleration { get; set; } = 50f;
     
     public override void Update(float deltaTime)
     {
-        Vector2 nextPos = Owner.Position;
+        var velocity = Owner.GetBehavior<Velocity>();
         
-        if (Raylib.IsKeyDown(KeyboardKey.Right)) nextPos.X += Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Left)) nextPos.X -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Up)) nextPos.Y -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Down)) nextPos.Y += Speed * deltaTime;
-        
-        Owner.Position = nextPos;
+        Vector2 direction = velocity.Current;
+        if (Raylib.IsKeyDown(KeyboardKey.Right)) direction.X += Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Left)) direction.X -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Up)) direction.Y -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Down)) direction.Y += Speed * deltaTime;
+
+        if (direction != Vector2.Zero)
+        {
+            if (velocity != null)
+            {
+                velocity.Current += direction * Acceleration;
+            }
+            else
+            {
+                Owner.Position += direction * Speed * deltaTime;
+            }
+        }
     }
 
     public override Behavior Clone()

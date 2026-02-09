@@ -9,7 +9,8 @@ public enum EditorTool
 public enum PaintingMode
 {
     Brush,
-    Rectangle
+    Rectangle,
+    Eraser
 }
 
 public static class EditorConfig

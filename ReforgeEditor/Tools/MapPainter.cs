@@ -70,9 +70,16 @@ public class MapPainter
                 }
             }
         }
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Eraser)
+        {
+            if (_hasPreview && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                DeleteEntityAt(engine, selectedAsset, snappedPos, currentLayerFromEditor);
+            }
+        }
     }
 
-    private void PlaceEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
+    void PlaceEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
     {
         int targetX = (int)MathF.Round(position.X);
         int targetY = (int)MathF.Round(position.Y);
@@ -94,6 +101,22 @@ public class MapPainter
         entity.Name = selectedAsset.Split('/').Last().Split('.').First();
         entity.ZIndex = layer;
         engine.CurrentScene.AddEntity(entity);
+    }
+
+    void DeleteEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
+    {
+        int targetX = (int)MathF.Round(position.X);
+        int targetY = (int)MathF.Round(position.Y);
+        
+        var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
+            (int)MathF.Round(e.Position.X) == targetX && 
+            (int)MathF.Round(e.Position.Y) == targetY && 
+            e.ZIndex == layer && e.TexturePath == selectedAsset);
+
+        if (existingTile != null)
+        {
+            engine.CurrentScene.DestroyEntity(existingTile);
+        }
     }
     
     public void DrawPreview(Engine engine)

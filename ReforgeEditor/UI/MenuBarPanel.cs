@@ -111,6 +111,14 @@ public class MenuBarPanel
                 
                 if (ImGui.RadioButton("Rectangle", EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle))
                     EditorConfig.CurrentPaintingMode = PaintingMode.Rectangle;
+                
+                ImGui.Separator();
+
+                if (ImGui.MenuItem("Effacer"))
+                {
+                    ctx.SelectedEntities.Clear();
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Eraser;
+                }
             }
             else
             {
