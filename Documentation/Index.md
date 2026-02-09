@@ -13,10 +13,11 @@ Découvrez le fonctionnement interne du moteur, du système d'entités à la ges
 
 ### 2. [Manuel de l'Éditeur (Editor)](./Editor.md)
 Apprenez à utiliser l'interface de l'éditeur pour concevoir vos niveaux sans coder.
-- Présentation de l'interface
-- Outils de dessin (Map Painter)
-- Inspecteur et Hiérarchie
+- Présentation de l'interface (MenuBar, Panneaux)
+- Outils de dessin (Map Painter) et raccourcis (`B`, `S`)
+- Inspecteur, Hiérarchie et Sélection multiple
 - Gestion des calques (Layers)
+- Mode Play/Stop et synchronisation d'état
 
 ### 3. [Tutoriels](./Tutorials/Index.md)
 Des guides étape par étape pour prendre en main l'outil.

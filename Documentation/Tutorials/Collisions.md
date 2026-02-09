@@ -19,14 +19,15 @@ Un trigger est une zone qui détecte une entrée mais ne bloque pas le mouvement
 1. Créez une entité (ex: un escalier ou une dalle).
 2. Ajoutez-lui un `BoxCollider`.
 3. Cochez la case **IsTrigger**.
-4. L'éditeur va automatiquement ajouter un composant `ActionTrigger` caché (mais visible dans l'inspecteur).
-5. Dans le composant `ActionTrigger`, ouvrez la section `OnEnterActions`.
-6. Cliquez sur **+ Ajouter**.
-7. Réglez l'action :
+4. L'éditeur va automatiquement ajouter un composant `ActionTrigger` (visible dans l'inspecteur).
+5. Dans le composant `ActionTrigger`, vous pouvez configurer des actions pour `OnEnter`, `OnStay` ou `OnExit`.
+6. Ouvrez la section `OnEnterActions`.
+7. Cliquez sur **+ Ajouter**.
+8. Réglez l'action :
     - **Verbe** : `Teleport`
-    - **Cibler soi-même** : Décoché (pour cibler l'entité qui entre dans la zone).
+    - **Cibler soi-même** : Décoché (pour cibler l'entité qui entre dans la zone, généralement le joueur).
     - **Destination** : Réglez les coordonnées X et Y de destination.
-8. Testez en mode **Play** : dès que le joueur touche la zone, il est téléporté !
+9. Testez en mode **Play** : dès que le joueur touche la zone, il est téléporté !
 
 ## 3. Détruire un objet
 

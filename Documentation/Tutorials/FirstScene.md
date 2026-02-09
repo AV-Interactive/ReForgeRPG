@@ -20,11 +20,11 @@ Ce tutoriel vous guide dans la création d'un niveau simple avec un décor et un
 - Cliquez une seule fois dans le monde pour le placer.
 
 ### 4. Rendre le joueur mobile
-- Basculez sur l'outil **Selection**.
+- Bascule sur l'outil **Selection** (touche `S`).
 - Cliquez sur votre personnage dans le Viewport (ou dans la Hierarchy).
-- Dans l'**Inspecteur** (à droite), cliquez sur le bouton **Ajouter** en bas.
+- Dans l'**Inspecteur** (à droite), cliquez sur le bouton **Ajouter**.
 - Choisissez `InputMovable`.
-- Vous verrez maintenant une propriété `Speed` apparaître. Vous pouvez modifier sa valeur.
+- Vous verrez maintenant une propriété `Speed` apparaître. Vous pouvez modifier sa valeur en temps réel.
 
 ### 5. Tester
 - Cliquez sur le bouton **Play** dans la barre de menu.

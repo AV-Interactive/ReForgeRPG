@@ -6,20 +6,20 @@ L'éditeur ReForge est un outil WYSIWYG (What You See Is What You Get) permettan
 
 L'interface est divisée en plusieurs panneaux dockables :
 
-- **Hierarchy (Haut-Gauche)** : Liste toutes les entités présentes dans la scène actuelle. Cliquez sur une entité pour la sélectionner.
-- **Content Browser (Bas-Gauche)** : Votre explorateur d'assets. Affiche les textures (.png) et les scènes (.json).
-- **Viewport (Centre)** : La vue de votre jeu. C'est ici que vous dessinez et manipulez les objets.
-- **Layer Control (Bas-Gauche)** : Permet de choisir sur quelle couche vous travaillez (Background, World, Foreground).
-- **Inspector (Droite)** : Affiche et permet de modifier les propriétés de l'entité sélectionnée (Position, Tags, Comportements).
+- **Hierarchy (Gauche)** : Liste toutes les entités de la scène. Permet la sélection (simple ou multiple), le renommage et la suppression.
+- **Content Browser (Bas)** : Explorateur d'assets. Affiche les textures (.png) et les scènes (.json). Cliquez sur une texture pour l'utiliser avec le Pinceau.
+- **Viewport (Centre)** : Vue interactive du jeu. Supporte le Gizmo de sélection et le rendu en temps réel.
+- **Layer Control (Droite)** : Permet de choisir le calque de travail (Background, World, Foreground) et de gérer la visibilité.
+- **Inspector (Droite)** : Modification des propriétés (Position, Nom, Tags) et configuration des `Behaviors`.
 
 ## 2. Outils et Navigation
 
 ### Barre de Menu
-- **Fichier > Sauvegarder la Scène** : Enregistre votre travail dans `Assets/Scenes/01.json`.
-- **Bouton Play/Stop** : Bascule entre le mode édition et le mode simulation. En mode Play, la physique et les scripts s'activent.
-- **Bouton Pinceau/Selection** :
-    - **Pinceau (Drawing)** : Cliquez dans le Viewport pour placer l'asset sélectionné dans le Content Browser.
-    - **Selection** : Cliquez sur un objet dans le Viewport pour le sélectionner et voir ses propriétés dans l'Inspecteur.
+- **Fichier > Sauvegarder la Scène** : Enregistre l'état actuel au format JSON.
+- **Bouton Play/Stop** : Bascule entre le mode édition (Editing) et le mode simulation (Playing).
+- **Bouton Pinceau (B) / Selection (S)** :
+    - **Pinceau (Drawing)** : Raccourci `B`. Cliquez pour placer l'asset sélectionné.
+    - **Selection** : Raccourci `S`. Cliquez sur un objet pour le manipuler via le Gizmo.
 
 ### Le Map Painter (Pinceau)
 1. Sélectionnez une texture dans le **Content Browser**.
@@ -36,3 +36,10 @@ L'inspecteur est l'outil le plus puissant de l'éditeur :
     - Vous pouvez ajouter de nouveaux composants via le bouton **Ajouter**.
     - Chaque paramètre public de votre script (float, int, bool, Vector2) est automatiquement affiché et modifiable en temps réel.
     - **ActionTrigger** : Permet de configurer des actions (Téléportation, Destruction) sans coder, en les liant à des événements de collision.
+
+## 4. Architecture Interne
+
+L'éditeur repose sur un **EditorContext** centralisé qui assure la cohérence entre les panneaux :
+- **Sélection** : Gère la liste des entités sélectionnées et le Gizmo.
+- **État du Moteur** : Synchronise le mode Play/Stop avec le cœur du moteur.
+- **Gestion des Outils** : Alterne entre le `MapPainter` et l'outil de sélection.

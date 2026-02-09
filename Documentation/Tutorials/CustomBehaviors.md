@@ -53,9 +53,9 @@ public override void OnReceivedEvent(string eventName, object? data)
 ```
 
 ## 4. Utilisation dans l'Éditeur
-
 1. Compilez votre projet.
 2. Ouvrez l'Éditeur.
 3. Sélectionnez une entité.
 4. Dans l'Inspecteur, cliquez sur **Ajouter**.
 5. Votre classe `MonComportement` apparaîtra automatiquement dans la liste !
+6. Toute modification de propriété dans l'Inspecteur sera immédiatement répercutée et sauvegardée lors de la sérialisation de la scène.

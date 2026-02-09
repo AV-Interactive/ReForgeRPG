@@ -25,24 +25,28 @@ Un `Behavior` est une classe abstraite qui permet d'ajouter de la logique à une
 
 ## 3. Physique et Collisions (`CollisionSystem`)
 
-Le système de physique est géré de manière globale :
-1. **Détection** : Utilise Raylib pour vérifier les chevauchements de rectangles (`Rectangle`).
-2. **Résolution** : Si deux entités ne sont pas des "Triggers", le moteur calcule le vecteur de pénétration minimal et repousse l'entité A pour sortir de l'entité B.
-3. **Événements** : Déclenche `OnCollisionEnter`, `OnCollisionStay`, et `OnCollisionExit`.
+Le système de physique est géré de manière globale par le `CollisionSystem` :
+1. **Détection** : Utilise Raylib pour vérifier les chevauchements de rectangles (`Rectangle`) via l'algorithme AABB.
+2. **Résolution** : Si deux entités ne sont pas des "Triggers", le moteur calcule le vecteur de pénétration minimal et repousse les entités pour résoudre la collision physiquement.
+3. **Événements** : Déclenche les méthodes `OnCollisionEnter`, `OnCollisionStay`, et `OnCollisionExit` sur les `Behavior` concernés.
+4. **ActionTrigger** : Un composant spécial qui s'ajoute automatiquement lors de l'ajout d'un `BoxCollider`. Il permet de lier des actions (téléportation, destruction, sons) aux événements de collision sans écrire de code.
 
 ## 4. Gestion des Scènes et Sérialisation
 
-Une `Scene` contient une liste d'entités.
-Le `SceneSerializer` utilise `System.Text.Json` avec un support pour le polymorphisme des comportements. Cela permet de sauvegarder l'état complet d'un niveau dans un fichier `.json` et de le recharger exactement dans le même état (y compris les propriétés modifiées dans l'inspecteur).
+Une `Scene` contient une liste d'entités organisées par couches.
+Le `SceneSerializer` utilise `System.Text.Json` (introduit dans .NET 10) pour sauvegarder l'état complet d'un niveau.
+- **Support Polymorphique** : Tous les types de `Behavior` sont correctement sérialisés et désérialisés.
+- **Récupération des Assets** : Les textures sont rechargées via l'`AssetManager` en utilisant le chemin stocké (`TexturePath`).
+- **Persistance** : Permet de sauvegarder l'état exact (positions, variables des comportements) pour une reprise immédiate.
 
 ## 5. Cycle de Vie du Moteur
 
 Le `Engine` centralise la boucle de jeu :
 1. `Update` :
     - Mise à jour de la scène actuelle.
-    - Mise à jour de chaque entité.
-    - Exécution de la logique des `Behaviors`.
-    - Calcul des collisions.
+    - Mise à jour de chaque entité et de ses comportements.
+    - Calcul et résolution des collisions par le `CollisionSystem`.
+    - Support du redimensionnement dynamique de la fenêtre.
 2. `Render` :
     - Nettoyage de l'écran.
     - Tri des entités par `ZIndex`.

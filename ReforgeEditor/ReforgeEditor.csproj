@@ -5,6 +5,7 @@
         <OutputType>Exe</OutputType>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>Reforge.Editor</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -19,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ReForge.Engine\ReForge.Engine.csproj" />
+      <ProjectReference Include="..\ReForgeEngine\ReForgeEngine.csproj" />
     </ItemGroup>
 
     <ItemGroup>
