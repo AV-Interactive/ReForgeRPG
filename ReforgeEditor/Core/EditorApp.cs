@@ -128,7 +128,8 @@
         {
             Vector2 mousePos = ImGui.GetMousePos();
             Vector2 relativeMousePos = mousePos - viewportPos;
-            
+            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+
             if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
                 // Logique de dessin
@@ -137,11 +138,11 @@
                     _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
                 }
             } 
+            
             else if (EditorConfig.CurrentTool == EditorTool.Selection)
             {
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
                     Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
 
                     if (ImGui.GetIO().KeyCtrl)
@@ -159,7 +160,27 @@
                     }
                 }
 
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                {
+                    ImGui.OpenPopup("ViewportContextMenu");
+                }
                 
+                if (ImGui.BeginPopup("ViewportContextMenu"))
+                {
+                    if (ImGui.MenuItem("Créer une entité"))
+                    {
+                        var emptyEntity = new Entity();
+                        emptyEntity.Name = "Nouvelle entité";
+                        emptyEntity.Position = snappedPos;
+                        emptyEntity.ZIndex = 3;
+                       
+                        _engine.CurrentScene.AddEntity(emptyEntity);
+                        
+                        _selectedEntities.Clear();
+                        _selectedEntities.Add(emptyEntity);
+                    }
+                    ImGui.EndPopup();
+                }
             }
         }
         

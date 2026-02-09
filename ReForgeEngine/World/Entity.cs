@@ -55,11 +55,11 @@ public class Entity
     public Entity()
     {
         AddBehavior(new TransformComponent());
-        AddBehavior(new SpriteComponent());
     }
 
     public Entity(Vector2 position, Texture2D texture, string name, string texturePath) : this()
     {
+        AddBehavior(new SpriteComponent());
         Position = position;
         Texture = texture;
         TexturePath = texturePath;
@@ -77,7 +77,11 @@ public class Entity
 
     public virtual void Draw()
     {
-        Raylib.DrawTextureV(Texture, Position, Color.White);
+        var sprite = Sprite;
+        if (sprite != null && sprite.Texture.Id != 0)
+        {
+            Raylib.DrawTextureV(Texture, Position, Color.White);
+        }
     }
 
     // Behavior Management

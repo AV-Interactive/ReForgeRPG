@@ -3,12 +3,15 @@ using ImGuiNET;
 using Raylib_cs;
 using Reforge.Editor.Core;
 using ReForge.Engine.Core;
+using ReForge.Engine.World.Behaviors;
 
 namespace Reforge.Editor.UI;
 
 public class ViewportPanel
 {
     RenderTexture2D _viewportRes;
+    Camera2D _worldCamera;
+    
     public Vector2 WindowPosition { get; private set; }
 
     public void Draw(Engine engine, EditorContext ctx, EditorApp app)
@@ -20,24 +23,72 @@ public class ViewportPanel
 
         if (_viewportRes.Id == 0) return;
         
+        Vector2 mousePos = ImGui.GetMousePos();
+        Vector2 relativeMousePos = mousePos - WindowPosition;
+        Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+        var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, snappedPos, ctx.CurrentLayer);
+
         Raylib.BeginTextureMode(_viewportRes);
-        engine.Render();
+        
+        var cameraEntity = engine.CurrentScene.Entities.FirstOrDefault(e => e.GetBehavior<CameraFollow>() != null);
 
-        if (ctx.State == EditorApp.EditorState.Editing)
+        if (cameraEntity != null && ctx.State != EditorApp.EditorState.Editing)
         {
-            ctx.MapPainter.DrawGrid(_viewportRes);
-            ctx.MapPainter.DrawPreview(engine);
+            _worldCamera.Target = cameraEntity.Position;
+            _worldCamera.Offset = new Vector2(windowWidth / 2, windowHeight / 2);
+            _worldCamera.Zoom = 1.0f;
+            _worldCamera.Rotation = 0;
             
-            Vector2 mousePos = ImGui.GetMousePos();
-            Vector2 relativeMousePos = mousePos - WindowPosition;
-            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+            Raylib.BeginMode2D(_worldCamera);
             
-            var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, snappedPos, ctx.CurrentLayer);
+                engine.Render();
 
-            foreach (var entity in ctx.SelectedEntities)
+                if (ctx.State == EditorApp.EditorState.Editing)
+                {
+                    ctx.MapPainter.DrawGrid(_viewportRes);
+                    ctx.MapPainter.DrawPreview(engine);
+                    
+                    foreach (var entity in ctx.SelectedEntities)
+                    {
+                        bool isHovered = (entity == hoveredEntity);
+                        ctx.Gizmo.Draw(entity, isHovered);
+                    }
+                }
+                
+            Raylib.EndMode2D();
+        }
+        else
+        {
+            engine.Render();
+
+            if (ctx.State == EditorApp.EditorState.Editing)
             {
-                bool isHovered  = (entity == hoveredEntity);
-                ctx.Gizmo.Draw(entity, isHovered);
+                ctx.MapPainter.DrawGrid(_viewportRes);
+        
+                foreach (var entity in engine.CurrentScene.Entities)
+                {
+                    var sprite = entity.Sprite;
+                    if (sprite == null || sprite.Texture.Id == 0)
+                    {
+                        Rectangle rect = new Rectangle(
+                            entity.Position.X, 
+                            entity.Position.Y, 
+                            EditorConfig.GridSize, 
+                            EditorConfig.GridSize
+                        );
+                
+                        Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.1f));
+                        Raylib.DrawRectangleLinesEx(rect, 1, Raylib.Fade(Color.SkyBlue, 0.8f));
+                    }
+                }
+        
+                ctx.MapPainter.DrawPreview(engine);
+
+                foreach (var entity in ctx.SelectedEntities)
+                {
+                    bool isHovered = (entity == hoveredEntity);
+                    ctx.Gizmo.Draw(entity, isHovered);
+                }
             }
         }
         
