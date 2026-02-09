@@ -20,6 +20,7 @@
         
         public enum EditorState {Editing, Playing};
         EditorState _currentState = EditorState.Editing;
+        public List<Entity> _snapshotEntities = new List<Entity>();
         
         MapPainter _mapPainter = new MapPainter();
         ViewportPanel _viewportPanel = new ViewportPanel();
@@ -86,6 +87,7 @@
             var ctx = new EditorContext
             {
                 State = _currentState,
+                SnapshotEntities = _snapshotEntities,
                 CurrentLayer = _currentLayer,
                 MapPainter = _mapPainter,
                 Hierarchy = _hierarchyPanel,

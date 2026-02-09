@@ -91,7 +91,7 @@ public class Entity
 
     public Entity Clone()
     {
-        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy", this.TexturePath);
+        var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
         
         foreach (var tag in _tags) clone.AddTag(tag);
 

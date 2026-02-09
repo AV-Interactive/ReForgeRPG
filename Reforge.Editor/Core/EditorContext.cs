@@ -1,5 +1,6 @@
 using Reforge.Editor.Tools;
 using Reforge.Editor.UI;
+using ReForge.Engine.World;
 
 namespace Reforge.Editor.Core;
 
@@ -16,4 +17,5 @@ public class EditorContext
     public float InspectorWidth { get; set; }
     public float MenuBarHeight { get; set; } = 20;
     public ContentBrowser ContentBrowser { get; set; }
+    public List<Entity> SnapshotEntities { get; set; } = new List<Entity>();
 }

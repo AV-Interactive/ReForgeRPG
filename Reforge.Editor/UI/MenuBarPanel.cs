@@ -61,11 +61,31 @@ public class MenuBarPanel
                 
             if (ctx.State == EditorApp.EditorState.Editing)
             {
-                if (ImGui.MenuItem("Play")) ctx.State = EditorApp.EditorState.Playing;
+                if (ImGui.MenuItem("Play"))
+                {
+                    ctx.SnapshotEntities.Clear();
+                    foreach (var entity in engine.CurrentScene.Entities)
+                    {
+                        ctx.SnapshotEntities.Add(entity.Clone());
+                    }
+                    ctx.State = EditorApp.EditorState.Playing;
+                }
             }
             else
             {
-                if (ImGui.MenuItem("Stop")) ctx.State = EditorApp.EditorState.Editing;
+                if (ImGui.MenuItem("Stop"))
+                {
+                    ctx.Hierarchy.SelectedEntity = null;
+                    engine.CurrentScene.Entities.Clear();
+                    foreach (var entity in ctx.SnapshotEntities)
+                    {
+                        engine.CurrentScene.AddEntity(entity.Clone());
+                    }
+                    
+                    Console.WriteLine($"Stop : Scène restaurée avec : {engine.CurrentScene.Entities.Count} entités.");
+                    
+                    ctx.State = EditorApp.EditorState.Editing;
+                }
             }
                 
             ImGui.Separator();
