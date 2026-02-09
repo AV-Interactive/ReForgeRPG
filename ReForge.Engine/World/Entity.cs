@@ -60,6 +60,8 @@ public class Entity
             trigger.Owner = this;
             AddBehavior(trigger);
         }
+
+        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) return;
         
         _behaviors.Add(behavior);
         behavior.Initialize();

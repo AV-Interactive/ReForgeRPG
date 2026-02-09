@@ -26,7 +26,7 @@ public class HierarchyPanel
             foreach (Entity entity in entities)
             {
                 bool isSelected = ctx.SelectedEntities.Contains(entity);
-                if (ImGui.Selectable($"{entity.Name}#{entity.GetHashCode()}", isSelected))
+                if (ImGui.Selectable($"{entity.Name}", isSelected))
                 {
                     if (ImGui.GetIO().KeyCtrl)
                     {
