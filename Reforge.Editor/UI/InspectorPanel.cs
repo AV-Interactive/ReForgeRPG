@@ -13,26 +13,53 @@ public class InspectorPanel
 {
     List<Type> _availableBehaviors = new List<Type>();
     string newTag = "";
-    
+
     public void Draw(Entity? selectedEntity, EditorContext ctx)
     {
         float windowWidth = Raylib.GetScreenWidth();
         float posX = windowWidth - ctx.InspectorWidth;
-        
+
         ImGui.SetNextWindowPos(new Vector2(posX, ctx.MenuBarHeight), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(ctx.InspectorWidth, Raylib.GetScreenHeight()), ImGuiCond.Always);
-        
+
         ImGui.Begin("Inspecteur");
-        if (selectedEntity == null)
+
+        if (ctx.SelectedEntities.Count == 0)
         {
-            ImGui.TextDisabled("Sélectionner une entité dans la hiérarchie.");
+            ImGui.TextDisabled("Sélectionner une ou plusieurs entités.");
             ImGui.End();
             return;
         }
-        
-        ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), $"Editer: {selectedEntity}");
+
+        if (ctx.SelectedEntities.Count > 1)
+        {
+            DrawMultiSelectionHeader(ctx);
+        }
+        else
+        {
+            DrawSingleEntityEditor(ctx);
+        }
+        ImGui.End();
+    }
+
+    void DrawMultiSelectionHeader(EditorContext ctx)
+    {
+        ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), $"{ctx.SelectedEntities.Count} Objets sélectionnés.");
         ImGui.Separator();
 
+        ImGui.Text("Actions groupées :");
+
+        if (ImGui.Button("Ajouter un comportement", new Vector2(-1, 25)))
+        {
+            RefreshBehaviorList();
+            ImGui.OpenPopup("Ajouter un comportement");
+        }
+        DrawBehaviorSelector(ctx.SelectedEntities);
+    }
+    
+    void DrawSingleEntityEditor(EditorContext ctx)
+    {
+        var selectedEntity = ctx.SelectedEntities[0];
         Vector2 pos = selectedEntity.Position;
         if (ImGui.DragFloat2("Position", ref pos)) selectedEntity.Position = pos;
         
@@ -98,30 +125,8 @@ public class InspectorPanel
             RefreshBehaviorList();
             ImGui.OpenPopup("Ajouter un comportement");
         }
-
-        if (ImGui.BeginPopupModal("Ajouter un comportement"))
-        {
-            ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), "Choisir un comportement");
-            foreach (var type in _availableBehaviors)
-            {
-                if (!selectedEntity.Behaviors.Any(b => b.GetType() == type))
-                {
-                    if (ImGui.Selectable(type.Name))
-                    {
-                        var newBehavior = (Behavior)Activator.CreateInstance(type);
-                        selectedEntity.AddBehavior(newBehavior);
-                    }
-                }
-            }
-            if (ImGui.Button("Annuler", new Vector2(-1, 0)))
-            {
-                ImGui.CloseCurrentPopup();
-            }
-            
-            ImGui.EndPopup();
-        }
         
-        ImGui.End();
+        DrawBehaviorSelector(ctx.SelectedEntities);
     }
 
     void DrawBehaviorEditor(Behavior behavior)
@@ -261,5 +266,33 @@ public class InspectorPanel
                         && p != typeof(Behavior)
                         && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null)
             .ToList();
+    }
+    
+    void DrawBehaviorSelector(List<Entity> targets)
+    {
+        if (ImGui.BeginPopupModal("Ajouter un comportement"))
+        {
+            ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), "Choisir un comportement");
+            foreach (var type in _availableBehaviors)
+            {
+                if (ImGui.Selectable(type.Name))
+                {
+                    foreach (var entity in targets)
+                    {
+                        if (!entity.Behaviors.Any(b => b.GetType() == type))
+                        {
+                            entity.AddBehavior((Behavior)Activator.CreateInstance(type));
+                        }
+                    }
+                    ImGui.CloseCurrentPopup();
+                }
+            }
+            if (ImGui.Button("Annuler", new Vector2(-1, 0)))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.EndPopup();
+        }
     }
 }
