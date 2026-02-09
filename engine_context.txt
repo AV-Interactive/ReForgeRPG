@@ -1,0 +1,992 @@
+#---- ReForge.Engine/Core/ProjectManager.cs
+using System.Text.Json;
+using ReForge.Engine.Core;
+using ReForge.Engine.World;
+
+namespace ReForge.Engin.Core;
+
+public static class ProjectManager
+{
+    static string _configPath = Path.Combine(AppContext.BaseDirectory, "lastProjectPath.txt");
+    public static ProjectSettings? CurrentProject { get; private set; }
+    public static string CurrentSceneName { get; set; }
+    public static Scene? CurrentScene { get; set; }
+    public static string ProjectRootPath { get; private set; }
+    public static bool IsSaved { get; set; } = false;
+
+    public static bool LoadProject(string filePath)
+    {
+        if (!File.Exists(filePath)) return false;
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            CurrentProject = JsonSerializer.Deserialize<ProjectSettings>(json);
+
+            if (CurrentProject != null)
+            {
+                ProjectRootPath = Path.GetDirectoryName(filePath) ?? "";
+                IsSaved = true;
+                return true;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erreur lors du chargement du projet : {e.Message}");
+        }
+        return false;
+    }
+    
+    public static void SaveLastProjectPath()
+    {
+        string path = Path.Combine(ProjectRootPath, CurrentProject.ProjectName + ".reforge");
+        File.WriteAllText(_configPath, path);
+    }
+
+    public static bool TryLoadLastProject()
+    {
+        if (File.Exists(_configPath))
+        {
+            string path = File.ReadAllText(_configPath);
+            return LoadProject(path);
+        }
+        return false;
+    }
+
+    public static void CreateEmptyTemporaryProject()
+    {
+        CurrentProject = new ProjectSettings
+        {
+            ProjectName = "Nouveau Projet",
+            AssetDirectory = "Assets",
+            StartScenePath = "Scenes/StartScene.scn"
+        };
+        
+        ProjectRootPath = AppContext.BaseDirectory;
+        
+        Directory.CreateDirectory(Path.Combine(ProjectRootPath, CurrentProject.AssetDirectory));
+        
+        string assetsBase = Path.Combine(AppContext.BaseDirectory, CurrentProject.AssetDirectory);
+        
+        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+        {
+            string dirPath;
+            if (type == AssetType.Scenes)
+            {
+                dirPath = Path.Combine(assetsBase, type.ToString());
+            }
+            else
+            {
+                dirPath = Path.Combine(assetsBase, type.ToString());
+            }
+            Directory.CreateDirectory(dirPath);
+        }
+    }
+
+    public static void SaveProject()
+    {
+        if (CurrentProject == null) return;
+
+        try
+        {
+            string targetPath = ProjectRootPath;
+            if (ProjectRootPath == AppContext.BaseDirectory)
+            {
+                targetPath = Path.Combine(AppContext.BaseDirectory, "Projects", CurrentProject.ProjectName);
+            }
+            
+            Directory.CreateDirectory(targetPath);
+            ProjectRootPath = targetPath;
+            
+            foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+            {
+                string dirPath;
+                if (type == AssetType.Scenes)
+                {
+                    dirPath = Path.Combine(ProjectRootPath, CurrentProject.SceneDirectory);
+                }
+                else
+                {
+                    dirPath = Path.Combine(ProjectRootPath, CurrentProject.AssetDirectory, type.ToString());
+                }
+                Directory.CreateDirectory(dirPath);
+            }
+            
+            string fullpath = Path.Combine(ProjectRootPath, $"{CurrentProject.ProjectName}.reforge");
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(CurrentProject, options);
+
+            File.WriteAllText(fullpath,json);
+            
+            SaveLastProjectPath();
+            
+            IsSaved = true;
+            Console.WriteLine($"Projet sauvegardé : {fullpath}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erreur lors de la sauvegarde du projet : {e.Message}");
+        }
+    }
+
+    public static void SaveScene()
+    {
+        if (CurrentProject == null || string.IsNullOrEmpty(CurrentSceneName)) return;
+        string scenePath = Path.Combine(ProjectRootPath, CurrentProject.SceneDirectory);
+        Directory.CreateDirectory(scenePath);
+        string fullPath = Path.Combine(scenePath, $"{CurrentSceneName}.scn");
+        
+        SceneSerializer.Save(CurrentScene, fullPath);
+    }
+}
+
+#---- ReForge.Engine/Core/Attributes.cs
+namespace ReForge.Engine.Core;
+
+using System;
+
+[AttributeUsage(AttributeTargets.Class)]
+public class HiddenBehaviorAttribute : Attribute 
+{
+}
+
+#---- ReForge.Engine/Core/AssetManager.cs
+using Raylib_cs;
+
+namespace ReForge.Engine.Core;
+
+public class AssetManager
+{
+    Dictionary<string, Texture2D> _textures = new();
+    
+    public Texture2D GetTexture(string path)
+    {
+        if (!_textures.ContainsKey(path))
+        {
+            _textures[path] = Raylib.LoadTexture(path);
+        }
+        return _textures[path];
+    }
+
+    public void UnloadAll()
+    {
+        foreach (var texture in _textures.Values)
+        {
+            Raylib.UnloadTexture(texture);
+        }
+        _textures.Clear();
+    }
+}
+
+#---- ReForge.Engine/Core/SceneSerializer.cs
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using ReForge.Engine.World;
+
+namespace ReForge.Engine.Core;
+
+public static class SceneSerializer
+{
+    private static JsonSerializerOptions _options = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        IncludeFields = true,
+        UnknownTypeHandling = (JsonUnknownTypeHandling)JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { CreateBehaviorResolver }
+        }
+    };
+
+    static void CreateBehaviorResolver(JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Type == typeof(Behavior))
+        {
+            var behaviorTypes = Assembly.GetAssembly(typeof(Behavior))!
+                .GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(Behavior)) && !t.IsAbstract);
+            
+            var polymorphismOptions = new JsonPolymorphismOptions();
+
+            foreach (var type in behaviorTypes)
+            {
+                polymorphismOptions.DerivedTypes.Add(new JsonDerivedType(type, type.Name));
+            }
+
+            typeInfo.PolymorphismOptions = polymorphismOptions;
+        }
+    }
+
+    public static void Save(Scene scene, string filePath)
+    {
+        try
+        {
+            string? directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            string json = JsonSerializer.Serialize(scene.Entities, _options);
+            File.WriteAllText(filePath, json);
+            Console.WriteLine("Scène sauvegardée avec succès !");
+        } catch (Exception e)
+        {
+            Console.WriteLine($"Erreur lors de la sauvegarde du fichier {filePath}: {e.Message}");
+        }
+    }
+    
+    public static void Load(Scene scene, Engine engine, string filePath)
+    {
+        if (!File.Exists(filePath)) return;
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            var loadedEntities = JsonSerializer.Deserialize<List<Entity>>(json, _options);
+
+            if (loadedEntities != null)
+            {
+                scene.Entities.Clear();
+
+                foreach (var entity in loadedEntities)
+                {
+                    // 1. On restaure la texture
+                    if (!string.IsNullOrEmpty(entity.TexturePath))
+                    {
+                        entity.Texture = engine.AssetManager.GetTexture(entity.TexturePath);
+                    }
+
+                    // 2. TRANSFERT CRUCIAL : Du JSON vers le moteur
+                    // On récupère les Behaviors que le JSON a mis dans la propriété publique
+                    if (entity.Behaviors != null)
+                    {
+                        // On crée une copie temporaire pour ne pas modifier la liste pendant qu'on boucle
+                        var behaviorsToRestore = entity.Behaviors.ToList();
+                    
+                        // On vide la liste pour passer par AddBehavior (qui gère l'Owner et la liste privée)
+                        entity.Behaviors.Clear(); 
+
+                        foreach (var behavior in behaviorsToRestore)
+                        {
+                            // Cette méthode va remplir _behaviors ET mettre l'Owner
+                            entity.AddBehavior(behavior); 
+                        }
+                    }
+
+                    scene.AddEntity(entity);
+                }
+                Console.WriteLine("Scène chargée et Behaviors réhydratés !");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erreur : {e.Message}");
+        }
+    }
+}
+
+#---- ReForge.Engine/Core/Engine.cs
+using Raylib_cs;
+using ReForge.Engine.World;
+
+namespace ReForge.Engine.Core;
+
+public class Engine
+{
+    int _width;
+
+    int _height;
+
+    string _winName;
+    
+    public static Engine Instance { get; private set; } = null!;
+
+    public Engine(int width, int height, string winName)
+    {
+        _width = width;
+        _height = height;
+        _winName = winName;
+
+        Instance = this;
+    }
+    
+    public void Initialize()
+    {
+        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
+        Raylib.InitWindow(_width, _height, _winName);
+        Raylib.SetTargetFPS(60);
+    }
+
+    public void Run()
+    {
+        while (!Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+        
+            Update(deltaTime);
+        
+            Raylib.BeginDrawing();
+            Render();
+            Raylib.EndDrawing();
+        }
+    }
+
+    public void Update(float deltaTime)
+    {
+        CurrentScene.Update(deltaTime);
+    }
+
+    public void Render()
+    {
+        Raylib.ClearBackground(Color.Black);
+        CurrentScene.Draw();
+    }
+
+    public void CleanUp()
+    {
+        Raylib.CloseWindow();
+        AssetManager.UnloadAll();
+    }
+    
+    public AssetManager AssetManager { get; set; } = new AssetManager();
+    
+    public Texture2D LoadTexture(string path) => AssetManager.GetTexture(path);
+    
+    public Scene CurrentScene { get; set; } = new Scene();
+    
+    public void DestroyEntity(Entity entity) => CurrentScene.DestroyEntity(entity);
+}
+
+#---- ReForge.Engine/Core/ProjectSettings.cs
+namespace ReForge.Engine.Core;
+
+public enum AssetType
+{
+    Actors,
+    Decors,
+    Scenes,
+    VFX,
+    SFX,
+    Images
+}
+
+public class ProjectSettings
+{
+    public string ProjectName { get; set; } = "Untitled";
+    public string AssetDirectory { get; set; } = "Assets";
+    public string SceneDirectory { get; set; } = "Scenes";
+    public string StartScenePath { get; set; }
+
+    public string GetFullPath(string relativePath)
+    {
+        return Path.Combine(AssetDirectory, relativePath);
+    }
+}
+
+#---- ReForge.Engine/World/Scene.cs
+using Raylib_cs;
+using ReForge.Engine.Physics;
+
+namespace ReForge.Engine.World;
+
+public class Scene
+{
+    List<Entity> _entities = new List<Entity>();
+    List<Entity> _entitiesToRemove = new List<Entity>();
+    
+    public void AddEntity(Entity entity)
+    {
+        _entities.Add(entity);
+    }
+    
+    public void Update(float deltaTime)
+    {
+        foreach (Entity entity in _entities)
+        {
+            entity.Update(deltaTime);
+        }
+
+        CollisionSystem.Update(_entities);
+        CleanUp();
+    }
+    
+    public void Draw()
+    {
+        CleanUp();
+        foreach (Entity entity in _entities.OrderBy(e => e.ZIndex))
+        {
+            entity.Draw();
+        }
+    }
+    
+    public void DestroyEntity(Entity entity)
+    {
+        _entitiesToRemove.Add(entity);
+    }
+    
+    void CleanUp()
+    {
+        if (_entitiesToRemove.Count == 0) return;
+        
+        foreach (Entity entity in _entitiesToRemove)
+        {
+            _entities.Remove(entity);
+        }
+        _entitiesToRemove.Clear();
+    }
+    
+    public List<Entity> Entities => _entities;
+}
+
+#---- ReForge.Engine/World/ActionCommand.cs
+using System.Numerics;
+
+namespace ReForge.Engine.World;
+
+public enum ActionVerb
+{
+    Destroy,
+    Teleport,
+    ToggleActive,
+    ChangeIndex
+}
+
+public class ActionCommand
+{
+    public ActionVerb Verb { get; set; }
+    public string TargetTag { get; set; } = "";
+    public bool TargetSelf { get; set; } = false;
+    public Vector2 Destination { get; set; }
+}
+
+#---- ReForge.Engine/World/Tilemap.cs
+using System.Numerics;
+using Raylib_cs;
+
+namespace ReForge.Engine.World;
+
+public class TileLayer
+{
+    public int[][] Data { get; set; }
+    public bool IsCollidable { get; set;}
+    public bool IsForeground { get; set;}
+    public TileLayer() { }
+    
+    public TileLayer(int width, int height)
+    {
+        Data = new int[width][];
+        for (int i = 0; i < width; i++)
+        {
+            Data[i] = new int[height];
+        }
+    }
+}
+
+public class Tilemap: Entity
+{
+    List<TileLayer> _layers = new List<TileLayer>();
+    int _tileSize;
+    Texture2D _tileset;
+    
+    public Tilemap(Vector2 position, int tileSize, Texture2D tileset, string texturePath) : base(position, tileset, "Tilemap", texturePath)
+    {
+        _tileSize = tileSize;
+        _tileset = tileset;
+    }
+    
+    public void AddLayer(TileLayer layer) => _layers.Add(layer);
+    
+    public override void Draw()
+    {
+        foreach (TileLayer layer in _layers)
+        {
+            DrawLayer(layer);
+        }
+    }
+
+    public void DrawLayer(TileLayer layer)
+    {
+        for (int y = 0; y < layer.Data.GetLength(1); y++)
+        {
+            for (int x = 0; x < layer.Data.GetLength(0); x++)
+            {
+                int tileId = layer.Data[x][y];
+
+                if (tileId == 0) continue;
+
+                Vector2 screenPos = new Vector2(
+                    Position.X + (x * _tileSize), 
+                    Position.Y + (y * _tileSize)
+                );
+
+                DrawTile(tileId, screenPos);
+            }
+        }
+    }
+    
+    private void DrawTile(int tileId, Vector2 screenPos)
+    {
+        int tilesPerRow = _tileset.Width / _tileSize;
+
+        int column = tileId % tilesPerRow;
+        int row = tileId / tilesPerRow;
+
+        // 3. Créer le rectangle source (quelle zone de l'image on prend)
+        Rectangle sourceRec = new Rectangle(
+            column * _tileSize, 
+            row * _tileSize, 
+            _tileSize, 
+            _tileSize
+        );
+
+        Raylib.DrawTextureRec(_tileset, sourceRec, screenPos, Color.White);
+    }
+}
+
+#---- ReForge.Engine/World/Behavior.cs
+using System.Text.Json.Serialization;
+
+namespace ReForge.Engine.World;
+
+public abstract class Behavior
+{
+    [JsonIgnore]
+    public Entity Owner { get; set; } = null!;
+    
+    public virtual void Initialize() {}
+    public abstract void Update(float deltaTime);
+    public abstract Behavior Clone();
+    public virtual void OnReceivedEvent(string eventName, object? data = null) {}
+}
+
+#---- ReForge.Engine/World/Components/TransformComponent.cs
+using System.Numerics;
+
+namespace ReForge.Engine.World.Components;
+
+public class TransformComponent: Behavior
+{
+    public Vector2 Position { get; set; }
+    
+    public override void Update(float deltaTime)
+    {
+        //
+    }
+
+    public override Behavior Clone()
+    {
+        return new TransformComponent()
+        {
+            Position = this.Position
+        };
+    }
+}
+
+#---- ReForge.Engine/World/Behaviors/Oscillator.cs
+using System.Numerics;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class Oscillator: Behavior
+{
+    public Vector2 Direction { get; set; } = new Vector2(1, 0);
+    public float Distance { get; set; } = 100f;
+    public float Speed { get; set; } = 2f;
+    
+    float _timer = 0f;
+    Vector2 _startPosition;
+    bool _initialized = false;
+    
+    
+    public override void Update(float deltaTime)
+    {
+        if (!_initialized)
+        {
+            _startPosition = Owner.Position;
+            _initialized = true;
+        }
+        
+        _timer += deltaTime;
+        
+        float offset = (float)Math.Sin(_timer) * Distance;
+        
+        Owner.Position = _startPosition + (Direction * offset);
+    }
+
+    public override Behavior Clone()
+    {
+        return new Oscillator 
+        { 
+            Direction = this.Direction, 
+            Distance = this.Distance, 
+            Speed = this.Speed 
+        };
+    }
+}
+
+#---- ReForge.Engine/World/Behaviors/BoxCollider.cs
+using Raylib_cs;
+namespace ReForge.Engine.World.Behaviors;
+
+public class BoxCollider: Behavior
+{
+    public float Width { get; set; }
+    public float Height { get; set; }
+
+    public bool IsTrigger { get; set; } = false;
+    
+    public Action<Entity>? OnCollisionEnter;
+    public Action<Entity>? OnCollisionStay;
+    public Action<Entity>? OnCollisionExit;
+    
+    public Rectangle Bounds => new Rectangle(Owner.Position.X, Owner.Position.Y, Width, Height);
+
+    public override void Initialize()
+    {
+        /*OnCollisionEnter += (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
+        OnCollisionExit += (target) => Owner.BroadcastEvent("OnCollisionExit", target);*/
+        OnCollisionEnter = (target) => Owner.BroadcastEvent("OnCollisionEnter", target);
+        OnCollisionExit = (target) => Owner.BroadcastEvent("OnCollisionExit", target);
+    }
+    
+    public override void Update(float deltaTime)
+    {
+        if (Width == 0) Width = Owner.Texture.Width;
+        if (Height == 0) Height = Owner.Texture.Height;
+    }
+
+    public override Behavior Clone()
+    {
+        return new BoxCollider 
+        { 
+            Width = this.Width, 
+            Height = this.Height, 
+            IsTrigger = this.IsTrigger 
+        };
+    }
+
+    public void DrawDebug()
+    {
+        Raylib.DrawRectangleLinesEx(Bounds, 2, Color.Green);
+    }
+}
+
+#---- ReForge.Engine/World/Behaviors/InputMovable.cs
+using System.Numerics;
+using Raylib_cs;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class InputMovable: Behavior
+{
+    public float Speed { get; set; } = 250f;
+    
+    public override void Update(float deltaTime)
+    {
+        Vector2 nextPos = Owner.Position;
+        
+        if (Raylib.IsKeyDown(KeyboardKey.Right)) nextPos.X += Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Left)) nextPos.X -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Up)) nextPos.Y -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Down)) nextPos.Y += Speed * deltaTime;
+        
+        Owner.Position = nextPos;
+    }
+
+    public override Behavior Clone()
+    {
+        return new InputMovable { Speed = this.Speed };
+    }
+}
+
+#---- ReForge.Engine/World/ActionTrigger.cs
+namespace ReForge.Engine.World;
+using ReForge.Engine.Core;
+
+[HiddenBehavior]
+public class ActionTrigger: Behavior
+{
+    public List<ActionCommand> OnEnterActions { get; set; } = new();
+    public List<ActionCommand> OnExitActions { get; set; } = new();
+    
+    public override void Update(float deltaTime)
+    {
+        
+    }
+
+    public override Behavior Clone()
+    {
+        return new ActionTrigger
+        {
+            OnEnterActions = this.OnEnterActions,
+            OnExitActions = this.OnExitActions
+        };
+    }
+
+    public override void OnReceivedEvent(string eventName, object? data = null)
+    {
+        Entity? entity = data as Entity;
+        
+        if (eventName == "OnCollisionEnter")
+        {
+            foreach (var action in OnEnterActions)
+            {
+                Execute(action, entity);
+            }
+        }
+
+        if (eventName == "OnCollisionExit")
+        {
+            foreach (var action in OnExitActions)
+            {
+                // On éxecute les actions
+            }
+        }
+    }
+
+    void Execute(ActionCommand command, Entity? entity = null)
+    {
+        List<Entity> targets = new();
+
+        if (command.TargetSelf)
+        {
+            targets.Add(Owner);
+        }
+        else if (!string.IsNullOrEmpty(command.TargetTag))
+        {
+            var found = Engine.Instance.CurrentScene.Entities
+                .Where(e => e.HasTag(command.TargetTag.Trim()));
+            targets.AddRange(found);
+        }
+        else if (entity != null)
+        {
+            targets.Add(entity);
+        }
+
+        foreach (var target in targets)
+        {
+            switch (command.Verb)
+            {
+                case ActionVerb.Destroy:
+                    Engine.Instance.CurrentScene.DestroyEntity(target);
+                    break;
+                case ActionVerb.Teleport:
+                    target.Position = command.Destination;
+                    break;
+            }
+        }
+    }
+}
+#---- ReForge.Engine/World/Entity.cs
+using System.Numerics;
+using System.Text.Json.Serialization;
+using Raylib_cs;
+using ReForge.Engine.World.Behaviors;
+using ReForge.Engine.World.Components;
+
+namespace ReForge.Engine.World;
+
+public class Entity
+{
+    public string Name { get; set; } = "Nouvel element";
+    public Vector2 Position 
+    {
+        get => GetBehavior<TransformComponent>().Position;
+        set => GetBehavior<TransformComponent>().Position = value;
+    }
+    public int ZIndex { get; set; } = 0;
+    public string TexturePath { get; set; } = "";
+
+    public List<string> Tags
+    {
+        get => _tags;
+        set => _tags = value;
+    }
+
+    public List<Behavior> Behaviors
+    {
+        get => _behaviors;
+        set => _behaviors = value;
+    }
+
+    public Entity()
+    {
+        AddBehavior(new TransformComponent());
+    }
+    
+    public TransformComponent Transform => GetBehavior<TransformComponent>();
+
+    [JsonIgnore]
+    public Texture2D Texture { get; set; }
+    
+    List<Behavior> _behaviors = new List<Behavior>();
+    List<string> _tags = new List<string>();
+
+    public Entity(Vector2 position, Texture2D texture, string name, string texturePath) : this()
+    {
+        Position = position;
+        Texture = texture;
+        TexturePath = texturePath;
+        Name = name;
+    }
+
+    public void AddBehavior(Behavior behavior)
+    {
+        behavior.Owner = this;
+        
+        if (behavior is BoxCollider && GetBehavior<ActionTrigger>() == null)
+        {
+            var trigger = new ActionTrigger();
+            trigger.Owner = this;
+            AddBehavior(trigger);
+        }
+        
+        _behaviors.Add(behavior);
+        behavior.Initialize();
+    }
+
+    public void RemoveBehavior(Behavior behavior)
+    {
+        _behaviors.Remove(behavior);
+    }
+
+    public virtual void Draw()
+    {
+        Raylib.DrawTextureV(Texture, Position, Color.White);
+    }
+
+    public T? GetBehavior<T>() where T : Behavior
+    {
+        // On regarde si un comportement specifique existe dans la liste
+        return _behaviors.OfType<T>().FirstOrDefault();
+    }
+    
+    public virtual void Update(float deltaTime)
+    {
+        foreach (Behavior behavior in _behaviors)
+        {
+            behavior.Update(deltaTime);
+        }
+    }
+
+    public Entity Clone()
+    {
+        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy", this.TexturePath);
+        
+        foreach (var tag in _tags) clone.AddTag(tag);
+
+        foreach (var behavior in _behaviors)
+        {
+            var clonedBehavior = behavior.Clone();
+            clone.AddBehavior(clonedBehavior);
+        }
+        
+        return clone;
+    }
+
+    public void BroadcastEvent(string eventName, object data)
+    {
+        foreach (Behavior behavior in _behaviors)
+        {
+            behavior.OnReceivedEvent(eventName, data);
+        }
+    }
+    
+    public void AddTag(string tag) => _tags.Add(tag);
+    public bool HasTag(string tag) => _tags.Contains(tag);
+    public void RemoveTag(string tag) => _tags.Remove(tag);
+}
+
+#---- ReForge.Engine/Physics/CollisionSystem.cs
+using System.Numerics;
+using Raylib_cs;
+using ReForge.Engine.World;
+using ReForge.Engine.World.Behaviors;
+
+namespace ReForge.Engine.Physics;
+
+public static class CollisionSystem
+{
+    static HashSet<(int, int)> _activeCollisions = new HashSet<(int, int)>();
+    
+    public static void Update(List<Entity> entities)
+    {
+        var collidables = entities.Where(e => e.GetBehavior<BoxCollider>() != null).ToList();
+        HashSet<(int, int)> currentFramePosition = new HashSet<(int, int)>();
+        
+        for (int i = 0; i < collidables.Count; i++)
+        {
+            var entA = collidables[i];
+            var colA = entA.GetBehavior<BoxCollider>();
+            if (colA == null) continue;
+
+            for (int j = i + 1; j < collidables.Count; j++)
+            {
+                var entB = collidables[j];
+                var colB = entB.GetBehavior<BoxCollider>();
+                if (colB == null) continue;
+
+                if (Raylib.CheckCollisionRecs(colA.Bounds, colB.Bounds))
+                {
+                    var pair = (entA.GetHashCode(), entB.GetHashCode());
+                    currentFramePosition.Add(pair);
+
+                    if (!_activeCollisions.Contains(pair))
+                    {
+                        /* ENTER */
+                        colA.OnCollisionEnter?.Invoke(entB);
+                        colB.OnCollisionEnter?.Invoke(entA);
+                    }
+                    else
+                    {
+                        /* STAY */
+                        colA.OnCollisionStay?.Invoke(entB);
+                        colB.OnCollisionStay?.Invoke(entA);
+                    }
+                    
+                    /* PHYSIC COLLISION */
+                    if (!colA.IsTrigger && !colB.IsTrigger)
+                    {
+                        Rectangle overlap = Raylib.GetCollisionRec(colA.Bounds, colB.Bounds);
+                        
+                        Vector2 newPos = entA.Position;
+                        
+                        if (overlap.Width < overlap.Height)
+                        {
+                            if(entA.Position.X < entB.Position.X) 
+                                newPos.X -= overlap.Width;
+                            else 
+                                newPos.X += overlap.Width;
+                        }
+                        else
+                        {
+                            if(entA.Position.Y < entB.Position.Y) 
+                                newPos.Y -= overlap.Height;
+                            else 
+                                newPos.Y += overlap.Height;
+                        }
+                        entA.Position = newPos;
+                    }
+                }
+            }
+        }
+        
+        /* EXIT */
+        foreach (var pair in _activeCollisions)
+        {
+            if (!currentFramePosition.Contains(pair))
+            {
+                var entA = entities.FirstOrDefault(e => e.GetHashCode() == pair.Item1);
+                var entB = entities.FirstOrDefault(e => e.GetHashCode() == pair.Item2);
+                
+                entA?.GetBehavior<BoxCollider>()?.OnCollisionExit?.Invoke(entB);
+                entB?.GetBehavior<BoxCollider>()?.OnCollisionExit?.Invoke(entA);
+            }
+        }
+        _activeCollisions = currentFramePosition;
+    }
+}
+
