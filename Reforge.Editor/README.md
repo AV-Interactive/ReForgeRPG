@@ -8,9 +8,10 @@ L'interface est divisée en plusieurs panneaux dockables :
 
 1.  **Game View (Centre)** : Fenêtre principale où vous visualisez et éditez votre scène.
 2.  **Content Browser (Bas)** : Explorateur de fichiers pour vos assets (textures, etc.). Cliquez sur une texture pour la sélectionner.
-3.  **Hierarchy (Gauche)** : Liste toutes les entités présentes dans la scène actuelle.
-4.  **Inspector (Droite)** : Affiche et permet de modifier les propriétés de l'entité sélectionnée.
+3.  **Hierarchy (Gauche)** : Liste toutes les entités présentes dans la scène actuelle. Permet la sélection et la gestion de la visibilité.
+4.  **Inspector (Droite)** : Affiche et permet de modifier les propriétés de l'entité sélectionnée (Transform, Nom, Tags, Behaviors).
 5.  **Layer Control** : Panneau pour choisir la couche de travail active (Background, World, Foreground).
+6.  **MenuBar (Haut)** : Accès rapide aux fichiers, outils et contrôle de l'état du moteur.
 
 ---
 
@@ -18,21 +19,32 @@ L'interface est divisée en plusieurs panneaux dockables :
 
 ### Barre de Menu
 - **Fichier > Sauvegarder la Scène** : Enregistre l'état actuel de la scène dans un fichier JSON.
-- **Play / Stop** : Bascule entre le mode édition et le mode test (exécution des comportements/physiques).
-- **Pinceau / Selection** : Alterne entre l'outil de dessin et l'outil de sélection d'entités.
-- **Toggle State** : L'éditeur synchronise désormais l'état Playing/Editing entre le bouton et le moteur.
+- **Play / Stop** : Bascule entre le mode édition (Editing) et le mode test (Playing). Les modifications physiques et les comportements ne sont actifs qu'en mode Play.
+- **Pinceau (B) / Selection (S)** : Alterne entre l'outil de dessin et l'outil de sélection d'entités.
+- **Toggle State** : Synchronisation de l'état Playing/Editing entre l'interface et le moteur.
 
 ### Utilisation du Pinceau (Map Painter)
-1. Sélectionnez l'outil **Pinceau** dans la barre de menu.
+1. Sélectionnez l'outil **Pinceau** (raccourci `B`).
 2. Dans le **Content Browser**, cliquez sur une texture pour la sélectionner.
 3. Choisissez le calque cible dans **Layer Control**.
-4. Cliquez (ou maintenez le clic) dans la **Game View** pour placer l'asset sur la grille.
+4. Cliquez (ou maintenez le clic) dans la **Game View** pour placer l'asset sur la grille (calé sur 32x32 par défaut).
 
 ### Sélection et Inspection
-1. Sélectionnez l'outil **Selection** dans la barre de menu.
+1. Sélectionnez l'outil **Selection** (raccourci `S`).
 2. Cliquez sur une entité dans la **Game View** ou dans la **Hierarchy**.
-3. L'entité sélectionnée est mise en surbrillance par un Gizmo.
-4. Modifiez ses propriétés (Nom, Position, ZIndex, etc.) directement dans l'**Inspector**.
+3. L'entité sélectionnée est mise en surbrillance par un **Gizmo** rectangulaire.
+4. Support de la sélection multiple (via la Hierarchy).
+5. Modifiez ses propriétés (Nom, Position, ZIndex, etc.) directement dans l'**Inspector**.
+
+---
+
+## 🏗️ Architecture Interne
+
+L'éditeur utilise un **EditorContext** centralisé qui partage l'état entre les différents panneaux :
+- État de sélection (`SelectedEntities`).
+- État de l'application (Édition vs Jeu).
+- Paramètres de vue (Largeurs des panneaux, hauteur du menu).
+- Instance du `MapPainter` et du `Gizmo`.
 
 ---
 

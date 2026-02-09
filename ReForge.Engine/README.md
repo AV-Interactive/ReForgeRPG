@@ -22,11 +22,12 @@ Le moteur suit une approche orientée objets avec un système de composants simp
     - `Update(float deltaTime)` : Appelée à chaque frame.
     - `OnCollisionEnter/Stay/Exit` : Événements de physique.
 - **TransformComponent** : Gère la position de l'entité. Ajouté automatiquement à chaque entité.
+- **ActionTrigger** : Permet de déclencher des événements spécifiques lors d'interactions ou d'états de jeu.
 
 ### Physics (Physique)
-- **CollisionSystem** : Gère la détection globale des collisions.
-- **BoxCollider** : Un Behavior spécial qui donne une boîte de collision à une entité.
-- **Triggers** : Support des collisions sans résolution physique pour déclencher des événements.
+- **CollisionSystem** : Gère la détection globale et la résolution des collisions (AABB).
+- **BoxCollider** : Un Behavior spécial qui donne une boîte de collision à une entité. Gère les événements `OnCollisionEnter`, `OnCollisionStay`, et `OnCollisionExit`.
+- **Triggers** : Support des collisions sans résolution physique (`IsTrigger = true`) pour déclencher des événements.
 
 ## 🚀 Utilisation rapide
 

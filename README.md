@@ -23,8 +23,9 @@ Le projet est divisé en trois parties principales :
 - **Système d'Entités** : Gestion d'entités avec position, textures, tags et comportements (Behaviors).
 - **Gestion de Scènes** : Système de scènes permettant d'organiser et de mettre à jour les entités.
 - **Asset Manager** : Chargement et mise en cache centralisée des textures.
-- **Système de Collision** : Détection et résolution des collisions (AABB) avec support des Triggers et événements (Enter, Stay, Exit).
-- **Rendu Performant** : Basé sur Raylib, avec gestion du ZIndex pour la profondeur.
+- **Système de Collision** : Détection et résolution des collisions (AABB) avec support des Triggers et événements (Enter, Stay, Exit), ainsi qu'un système d'**ActionTrigger** pour les interactions.
+- **Rendu Performant** : Basé sur Raylib, avec gestion du ZIndex pour la profondeur et support du redimensionnement de fenêtre.
+- **Sérialisation** : Sauvegarde et chargement des scènes au format JSON (via `System.Text.Json`).
 
 ### Reforge.Editor (Éditeur)
 - **Map Painter** : Outil de peinture sur grille (Tile-based) pour créer des environnements.
