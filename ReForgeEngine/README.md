@@ -1,4 +1,4 @@
-# ReForge.Engine
+# ReForgeEngine
 
 Le cœur du moteur de jeu ReForgeRPG. Ce module contient toute la logique fondamentale nécessaire pour faire tourner un jeu 2D.
 
