@@ -1,0 +1,1204 @@
+#---- ReforgeEditor/UI/ContentBrowser.cs
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engin.Core;
+using ReForge.Engine.Core;
+using rlImGui_cs;
+
+namespace Reforge.Editor.UI;
+
+public class ContentBrowser
+{
+    public string SelectedAsset { get; set; } = "";
+    AssetType _currentType = AssetType.Actors;
+
+    public void Draw(Engine engine, EditorContext ctx)
+    {
+        ctx.BrowserContentHeight = Raylib.GetScreenHeight() - ctx.HierarchyHeight - ctx.MenuBarHeight - 120;
+        ImGui.SetNextWindowPos(new Vector2(0, ctx.MenuBarHeight + ctx.HierarchyHeight), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(ctx.SidebarWidth, ctx.BrowserContentHeight), ImGuiCond.Always);
+
+        if (ImGui.Begin("Explorateur", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
+        {
+            if (ImGui.BeginTabBar("Ressources"))
+            {
+                foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+                {
+                    if (ImGui.BeginTabItem(type.ToString()))
+                    {
+                        _currentType = type;
+                        ImGui.EndTabItem();
+                    }
+                }
+                
+                string finalPath;
+                if (_currentType == AssetType.Scenes)
+                {
+                    finalPath = Path.Combine(ProjectManager.ProjectRootPath,
+                        ProjectManager.CurrentProject.SceneDirectory);
+                }
+                else
+                {
+                    finalPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, _currentType.ToString());
+                }
+
+                if (Directory.Exists(finalPath))
+                {
+                    ImGui.BeginChild("AssetsList");
+                    string[] files = Directory.GetFiles(finalPath);
+                    foreach (string file in files)
+                    {
+                        string fileName = Path.GetFileName(file);
+                        string fileNameWhithoutExtension = Path.GetFileNameWithoutExtension(file);
+                        
+                        if (fileName.StartsWith(".")) continue;
+                        if (ImGui.Selectable(fileNameWhithoutExtension))
+                        {
+                            SelectedAsset = file;
+                        }
+            
+                        if (_currentType == AssetType.Scenes)
+                        {
+                            SceneSerializer.Load(engine.CurrentScene, engine, file);
+                            ProjectManager.CurrentSceneName = fileNameWhithoutExtension;
+                            ProjectManager.CurrentScene = engine.CurrentScene;
+                        }
+                    }
+                    ImGui.EndChild();
+                }
+            }
+            
+            ImGui.EndTabBar();
+        }
+    
+        ImGui.End();
+    }
+}
+
+#---- ReforgeEditor/UI/HierarchyPanel.cs
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.World;
+
+namespace Reforge.Editor.UI;
+
+public class HierarchyPanel
+{
+    RenderTexture2D _viewportRes;
+    public Vector2 WindowPosition { get; private set; }
+    
+    public void Draw(IEnumerable<Entity> entities, EditorContext ctx)
+    {
+        float heightPercentage = 0.30f;
+        float minHeight = 200f;
+        float hierarchyHeight = Math.Max(minHeight, Raylib.GetScreenHeight() * heightPercentage);
+        ctx.HierarchyHeight = hierarchyHeight;
+        ImGui.SetNextWindowPos(new Vector2(0, ctx.MenuBarHeight), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(ctx.SidebarWidth, hierarchyHeight), ImGuiCond.Always);
+
+        if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
+        {
+            WindowPosition = ImGui.GetWindowPos();
+            int i = 0;
+            foreach (Entity entity in entities)
+            {
+                bool isSelected = ctx.SelectedEntities.Contains(entity);
+                if (ImGui.Selectable($"{entity.Name}##{i}_{entity.GetHashCode()}", isSelected))
+                {
+                    if (ImGui.GetIO().KeyCtrl)
+                    {
+
+                        if (isSelected) ctx.SelectedEntities.Remove(entity);
+                        else ctx.SelectedEntities.Add(entity);
+                    }
+                    else
+                    {
+                        ctx.SelectedEntities.Clear();
+                        ctx.SelectedEntities.Add(entity);
+                    }
+                }
+                i++;
+            }
+        }
+        ImGui.End();
+    }
+}
+
+#---- ReforgeEditor/UI/MenuBarPanel.cs
+using System.Numerics;
+using ImGuiNET;
+using Reforge.Editor.Core;
+using Reforge.Editor.Tools;
+using ReForge.Engin.Core;
+using ReForge.Engine.Core;
+
+namespace Reforge.Editor.UI;
+
+public class MenuBarPanel
+{
+    bool _showSavePopup = false;
+    bool _showSaveScenePopup = false;
+    string _projectNameBuffer = "";
+    string _sceneNameBuffer = "";
+    Engine _engine;
+    
+    public void Draw(Engine engine, EditorContext ctx)
+    {
+        _engine = engine;
+        if (ImGui.BeginMainMenuBar())
+        {
+            if (ImGui.BeginMenu("Fichier"))
+            {
+                if (ctx.State == EditorApp.EditorState.Editing)
+                {
+                    if (ImGui.MenuItem("Sauvegarder"))
+                    {
+                        if (ProjectManager.IsSaved)
+                        {
+                            ProjectManager.SaveProject();
+                        }
+                        else
+                        {
+                            _showSavePopup = true;
+                        }
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Sauvegarder");
+                }
+                
+                if (ImGui.MenuItem("Sauvegarder la Scène actuelle"))
+                {
+                    if (ProjectManager.IsSaved)
+                    {
+                        if (ProjectManager.CurrentScene != null)
+                        {
+                            ProjectManager.SaveScene();
+                        }
+                        else
+                        {
+                            _showSaveScenePopup = true;
+                        }
+                    }
+                    else
+                    {
+                        _showSavePopup = true;
+                    }
+                }
+                
+                ImGui.EndMenu();
+            }
+                
+            ImGui.Separator();
+                
+                
+            if (ctx.State == EditorApp.EditorState.Editing)
+            {
+                if (ImGui.MenuItem("Play"))
+                {
+                    ctx.SnapshotEntities.Clear();
+                    foreach (var entity in engine.CurrentScene.Entities)
+                    {
+                        ctx.SnapshotEntities.Add(entity.Clone());
+                    }
+                    ctx.State = EditorApp.EditorState.Playing;
+                }
+            }
+            else
+            {
+                if (ImGui.MenuItem("Stop"))
+                {
+                    ctx.SelectedEntities.Clear()
+                        ;
+                    engine.CurrentScene.Entities.Clear();
+                    foreach (var entity in ctx.SnapshotEntities)
+                    {
+                        engine.CurrentScene.AddEntity(entity.Clone());
+                    }
+                    
+                    Console.WriteLine($"Stop : Scène restaurée avec : {engine.CurrentScene.Entities.Count} entités.");
+                    
+                    ctx.State = EditorApp.EditorState.Editing;
+                }
+            }
+                
+            ImGui.Separator();
+                
+            if (EditorConfig.CurrentTool == EditorTool.Drawing)
+            {
+                if (ImGui.MenuItem("Sélection")) EditorConfig.CurrentTool = EditorTool.Selection;
+                
+                ImGui.Separator();
+                
+                if (ImGui.RadioButton("Pinceau", EditorConfig.CurrentPaintingMode == PaintingMode.Brush))
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Brush;
+                
+                ImGui.SameLine();
+                
+                if (ImGui.RadioButton("Rectangle", EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle))
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Rectangle;
+            }
+            else
+            {
+                if (ImGui.MenuItem("Pinceau")) EditorConfig.CurrentTool = EditorTool.Drawing;
+            }
+            ImGui.EndMainMenuBar();
+        }
+        
+        if (_showSavePopup) 
+        {
+            ImGui.OpenPopup("Enregistrer le projet");
+        }
+        if (_showSaveScenePopup) 
+        {
+            ImGui.OpenPopup("Enregistrer la Scene");
+        }
+        
+        DrawSavePopup();
+        DrawSaveScenePopup();
+    }
+    
+    void DrawSavePopup()
+    {
+        if (ImGui.BeginPopupModal("Enregistrer le projet", ref _showSavePopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Donner un nom au projet:");
+            ImGui.InputText("##_projectNameBuffer", ref _projectNameBuffer, 50);
+            if (ImGui.Button("Enregistrer"))
+            {
+                ProjectManager.CurrentProject.ProjectName = _projectNameBuffer;
+                ProjectManager.SaveProject();
+                _projectNameBuffer = "";
+                _showSavePopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Annuler")) ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+        }
+    }
+    
+    void DrawSaveScenePopup()
+    {
+        if (ImGui.BeginPopupModal("Enregistrer la Scene", ref _showSaveScenePopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Nommer la scène:");
+            ImGui.InputText("##_sceneNameBuffer", ref _sceneNameBuffer, 50);
+            if (ImGui.Button("Enregistrer"))
+            {
+                ProjectManager.CurrentSceneName = _sceneNameBuffer;
+                ProjectManager.CurrentScene = _engine.CurrentScene;
+                ProjectManager.SaveScene();
+                _sceneNameBuffer = "";
+                _showSaveScenePopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Annuler")) ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+        }
+    }
+}
+
+#---- ReforgeEditor/UI/InspectorPanel.cs
+using System.Reflection;
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.Core;
+using ReForge.Engine.World;
+using ReForge.Engine.World.Behaviors;
+
+namespace Reforge.Editor.UI;
+
+public class InspectorPanel
+{
+    List<Type> _availableBehaviors = new List<Type>();
+    string newTag = "";
+
+    public void Draw(Entity? selectedEntity, EditorContext ctx)
+    {
+        float windowWidth = Raylib.GetScreenWidth();
+        float posX = windowWidth - ctx.InspectorWidth;
+
+        ImGui.SetNextWindowPos(new Vector2(posX, ctx.MenuBarHeight), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(ctx.InspectorWidth, Raylib.GetScreenHeight()), ImGuiCond.Always);
+
+        ImGui.Begin("Inspecteur");
+
+        if (ctx.SelectedEntities.Count == 0)
+        {
+            ImGui.TextDisabled("Sélectionner une ou plusieurs entités.");
+            ImGui.End();
+            return;
+        }
+
+        if (ctx.SelectedEntities.Count > 1)
+        {
+            DrawMultiSelectionHeader(ctx);
+        }
+        else
+        {
+            DrawSingleEntityEditor(ctx);
+        }
+        ImGui.End();
+    }
+
+    void DrawMultiSelectionHeader(EditorContext ctx)
+    {
+        ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), $"{ctx.SelectedEntities.Count} Objets sélectionnés.");
+        ImGui.Separator();
+
+        ImGui.Text("Actions groupées :");
+
+        if (ImGui.Button("Ajouter un comportement", new Vector2(-1, 25)))
+        {
+            RefreshBehaviorList();
+            ImGui.OpenPopup("Ajouter un comportement");
+        }
+        DrawBehaviorSelector(ctx.SelectedEntities);
+    }
+    
+    void DrawSingleEntityEditor(EditorContext ctx)
+    {
+        var selectedEntity = ctx.SelectedEntities[0];
+        Vector2 pos = selectedEntity.Position;
+        if (ImGui.DragFloat2("Position", ref pos)) selectedEntity.Position = pos;
+        
+        ImGui.Text($"Tags:");
+        int tagToRemove = -1;
+        for (int i = 0; i < selectedEntity.Tags.Count; i++)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button($"{selectedEntity.Tags[i]}##{i}"))
+            {
+                tagToRemove = i;
+            }
+        }
+
+        if (tagToRemove != -1)
+        {
+            selectedEntity.Tags.RemoveAt(tagToRemove);
+        }
+        
+        ImGui.InputText("##NewTag", ref newTag, 32);
+        ImGui.SameLine();
+        if (ImGui.Button("+"))
+        {
+            selectedEntity.AddTag(newTag);
+            newTag = "";
+        }
+
+        ImGui.Separator();
+        ImGui.Text("Comportements");
+        Behavior? behaviorToRemove = null;
+
+        foreach (var behavior in selectedEntity.Behaviors)
+        {
+            ImGui.PushID(behavior.GetHashCode());
+            
+            bool open = ImGui.TreeNodeEx(behavior.GetType().Name, ImGuiTreeNodeFlags.DefaultOpen);
+            
+            ImGui.SameLine(ImGui.GetWindowWidth() - 30);
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.1f, 0.1f, 1.0f));
+            if (ImGui.Button("X"))
+            {
+                behaviorToRemove = behavior;
+            }
+            ImGui.PopStyleColor();
+            
+            if (open)
+            {
+                DrawBehaviorEditor(behavior);
+                ImGui.TreePop();
+            }
+            
+            ImGui.PopID();
+        }
+
+        if (behaviorToRemove != null)
+        {
+            selectedEntity.RemoveBehavior(behaviorToRemove);
+        }
+        
+        ImGui.Separator();
+        if (ImGui.Button("Ajouter", new Vector2(-1, 25)))
+        {
+            RefreshBehaviorList();
+            ImGui.OpenPopup("Ajouter un comportement");
+        }
+        
+        DrawBehaviorSelector(ctx.SelectedEntities);
+    }
+
+    void DrawBehaviorEditor(Behavior behavior)
+    {
+        // PROPRIETES
+        var properties = behavior.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
+        foreach (var prop in properties)
+        {
+            if (!prop.CanWrite || !prop.CanRead) continue;
+
+            var value = prop.GetValue(behavior);
+        
+            if (prop.PropertyType == typeof(float))
+            {
+                float f = (float)value!;
+                if (ImGui.DragFloat(prop.Name, ref f)) prop.SetValue(behavior, f);
+            }
+            else if (prop.PropertyType == typeof(Vector2))
+            {
+                Vector2 v = (Vector2)value!;
+                if (ImGui.DragFloat2(prop.Name, ref v)) prop.SetValue(behavior, v);
+            }
+            else if (prop.PropertyType == typeof(int))
+            {
+                int i = (int)value!;
+                if (ImGui.DragInt(prop.Name, ref i)) prop.SetValue(behavior, i);
+            }
+            else if (prop.PropertyType == typeof(bool))
+            {
+                bool b = (bool)value!;
+                if (ImGui.Checkbox(prop.Name, ref b)) prop.SetValue(behavior, b);
+            }
+            else if (prop.PropertyType == typeof(string))
+            {
+                string s = (string)value!;
+                if (ImGui.InputText(prop.Name, ref s, 128)) prop.SetValue(behavior, s);
+            }
+            else if (prop.PropertyType == typeof(List<ActionCommand>))
+            {
+                var list = (List<ActionCommand>)value!;
+                if(ImGui.TreeNode($"Commandes de {prop.Name} ({list.Count})"))
+                {
+                    if (ImGui.Button($"+ Ajouter"))
+                    {
+                        list.Add(new ActionCommand());
+                    }
+
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        DrawActionCommandEditor(list[i], list, i);
+                    }
+                    ImGui.TreePop();
+                }
+            }
+            
+        }
+        
+        // Variables
+        var fields = behavior.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public);
+
+        foreach (var field in fields)
+        {
+            var value = field.GetValue(behavior);
+
+            if (field.FieldType == typeof(float))
+            {
+                float f = (float) value!;
+                if (ImGui.DragFloat(field.Name, ref f)) field.SetValue(behavior, f);
+            }
+            else if (field.FieldType == typeof(int))
+            {
+                int i = (int)value!;
+                if (ImGui.DragInt(field.Name, ref i)) field.SetValue(behavior, i);
+            }
+            else if (field.FieldType == typeof(bool))
+            {
+                bool b = (bool)value!;
+                if (ImGui.Checkbox(field.Name, ref b)) field.SetValue(behavior, b);
+            }
+            else if (field.FieldType == typeof(string))
+            {
+                string s = (string)value!;
+                if (ImGui.InputText(field.Name, ref s, 128)) field.SetValue(behavior, s);
+            }
+        }
+    }
+
+    void DrawActionCommandEditor(ActionCommand actionCommand, List<ActionCommand> list, int i)
+    {
+        string[] verbNames = Enum.GetNames(typeof(ActionVerb));
+        int currentVerbIndex = (int)actionCommand.Verb;
+
+        if (ImGui.Combo("Verbe", ref currentVerbIndex, verbNames, verbNames.Length))
+        {
+            actionCommand.Verb = (ActionVerb)currentVerbIndex;
+        }
+        
+        bool targetSelf = actionCommand.TargetSelf;
+        if (ImGui.Checkbox($"Cibler soi-même ##{i}", ref targetSelf))
+        {
+            actionCommand.TargetSelf = targetSelf;
+        }
+
+        if (!actionCommand.TargetSelf)
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Ciblage Global par Tag");
+            
+            string tag = actionCommand.TargetTag;
+            if (ImGui.InputText($"Tag cible ##{i}", ref tag, 64))
+            {
+                actionCommand.TargetTag = tag;
+            }
+        }
+
+        switch (actionCommand.Verb)
+        {
+            case ActionVerb.Teleport:
+                Vector2 destination = actionCommand.Destination;
+                if(ImGui.DragFloat2($"Destination##{i}", ref destination))
+                {
+                    actionCommand.Destination = destination;
+                }
+                break;
+            case ActionVerb.Destroy:
+                break;
+            case ActionVerb.ToggleActive:
+                break;
+        }
+    }
+
+    void RefreshBehaviorList()
+    {
+        _availableBehaviors = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(s => s.GetTypes())
+            .Where(p => typeof(Behavior).IsAssignableFrom(p) 
+                        && !p.IsAbstract 
+                        && p != typeof(Behavior)
+                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null)
+            .ToList();
+    }
+    
+    void DrawBehaviorSelector(List<Entity> targets)
+    {
+        if (ImGui.BeginPopupModal("Ajouter un comportement"))
+        {
+            ImGui.TextColored(new Vector4(0.4f, 0.8f, 1, 1), "Choisir un comportement");
+            foreach (var type in _availableBehaviors)
+            {
+                if (ImGui.Selectable(type.Name))
+                {
+                    foreach (var entity in targets)
+                    {
+                        if (!entity.Behaviors.Any(b => b.GetType() == type))
+                        {
+                            entity.AddBehavior((Behavior)Activator.CreateInstance(type));
+                        }
+                    }
+                    ImGui.CloseCurrentPopup();
+                }
+            }
+            if (ImGui.Button("Annuler", new Vector2(-1, 0)))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.EndPopup();
+        }
+    }
+}
+
+#---- ReforgeEditor/UI/ViewportPanel.cs
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.Core;
+
+namespace Reforge.Editor.UI;
+
+public class ViewportPanel
+{
+    RenderTexture2D _viewportRes;
+    public Vector2 WindowPosition { get; private set; }
+
+    public void Draw(Engine engine, EditorContext ctx, EditorApp app)
+    {
+        float windowWidth = Raylib.GetScreenWidth() - ctx.SidebarWidth - ctx.InspectorWidth;
+        float windowHeight = Raylib.GetScreenHeight() - ctx.MenuBarHeight;
+        
+        UpdateResolution(windowWidth, windowHeight);
+
+        if (_viewportRes.Id == 0) return;
+        
+        Raylib.BeginTextureMode(_viewportRes);
+        engine.Render();
+
+        if (ctx.State == EditorApp.EditorState.Editing)
+        {
+            ctx.MapPainter.DrawGrid(_viewportRes);
+            ctx.MapPainter.DrawPreview(engine);
+            
+            Vector2 mousePos = ImGui.GetMousePos();
+            Vector2 relativeMousePos = mousePos - WindowPosition;
+            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+            
+            var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, snappedPos, ctx.CurrentLayer);
+
+            foreach (var entity in ctx.SelectedEntities)
+            {
+                bool isHovered  = (entity == hoveredEntity);
+                ctx.Gizmo.Draw(entity, isHovered);
+            }
+        }
+        
+        Raylib.EndTextureMode();
+        
+        ImGui.SetNextWindowPos(new Vector2(ctx.SidebarWidth, ctx.MenuBarHeight));
+        ImGui.SetNextWindowSize(new Vector2(windowWidth, windowHeight));
+
+        if (ImGui.Begin("Viewport", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
+        {
+            WindowPosition = ImGui.GetCursorScreenPos();
+            
+            app.HandleEditorTools(WindowPosition);
+
+            IntPtr textureId = (IntPtr)_viewportRes.Texture.Id;
+            ImGui.Image(textureId, new Vector2(windowWidth, windowHeight), new Vector2(0, 1), new Vector2(1, 0));
+        }
+        
+        ImGui.End();
+    }
+
+    void UpdateResolution(float width, float height)
+    {
+        if (width <= 0 || height <= 0) return;
+
+        if (_viewportRes.Id == 0 || width != _viewportRes.Texture.Width || height != _viewportRes.Texture.Height)
+        {
+            if (_viewportRes.Id != 0) 
+            {
+                Raylib.UnloadRenderTexture(_viewportRes);
+            }
+            _viewportRes = Raylib.LoadRenderTexture((int)width, (int)height);
+        }
+    }
+}
+
+#---- ReforgeEditor/UI/LayerPanel.cs
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+
+namespace Reforge.Editor.UI;
+
+public class LayerPanel
+{
+    public void Draw(EditorContext ctx)
+    {
+        float posY = ctx.MenuBarHeight + ctx.HierarchyHeight + ctx.BrowserContentHeight;
+        float remainingHeight = Raylib.GetScreenHeight() - posY;
+
+        ImGui.SetNextWindowPos(new Vector2(0, posY), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(ctx.SidebarWidth, remainingHeight), ImGuiCond.Always);
+
+        if (ImGui.Begin("Layer Control", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
+        {
+            int layer = ctx.CurrentLayer;
+            if(ImGui.RadioButton("Background", ref layer, 0)) ctx.CurrentLayer = layer;
+            if(ImGui.RadioButton("World", ref layer, 1)) ctx.CurrentLayer = layer;
+            if(ImGui.RadioButton("Foreground", ref layer, 2)) ctx.CurrentLayer = layer;
+        }
+        ImGui.End();
+    }
+}
+
+#---- ReforgeEditor/Tools/EditorSelector.cs
+using System.Numerics;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.World;
+
+namespace Reforge.Editor.Tools;
+
+public class EditorSelector
+{
+    public Entity? GetEntityAt(Scene scene, Vector2 worldMousePos, int layerIndex)
+    {
+        return scene.Entities
+            .Where(e => e.Position == worldMousePos)
+            .OrderByDescending(e => e.ZIndex)
+            .FirstOrDefault();
+    }
+
+    public Entity? UpdateSelection(Scene scene, Vector2 viewportPos, int layerIndex)
+    {
+        if(!Raylib.IsMouseButtonDown(MouseButton.Left)) return null;
+        
+        Vector2 mousePos = Raylib.GetMousePosition();
+        Vector2 relativeMousePos = mousePos - viewportPos;
+        
+        Vector2 snappedPos = EditorMath.SnapToGrid(relativeMousePos);
+        
+        return GetEntityAt(scene, snappedPos, layerIndex);
+    }
+}
+
+#---- ReforgeEditor/Tools/ProjectPaths.cs
+namespace Reforge.Editor.Tools;
+
+public class ProjectPaths
+{
+    public static string Root = AppDomain.CurrentDomain.BaseDirectory;
+    
+    public static string Scenes = Path.Combine(Root, "Assets", "Scenes");
+}
+
+#---- ReforgeEditor/Tools/MapPainter.cs
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.Core;
+using ReForge.Engine.World;
+
+namespace Reforge.Editor.Tools;
+
+public class MapPainter
+{
+    public float GridSize = 32.0f;
+
+    Vector2 _lastSnappedPos;
+    bool _hasPreview;
+    string _lastAsset = string.Empty;
+    Vector2 _startRectPos;
+    Vector2 _currentRectPos;
+    bool _isDrawingRect;
+
+    public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 relativeMousePos)
+    {
+        if (string.IsNullOrEmpty(selectedAsset))
+        {
+            _hasPreview = false;
+            _lastAsset = string.Empty;
+            return;
+        }
+        
+        Vector2 snappedPos = EditorMath.SnapToGrid(relativeMousePos);
+        
+        _lastSnappedPos = snappedPos;
+        _hasPreview = ImGui.IsWindowHovered();
+        _lastAsset = selectedAsset;
+
+        if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
+        {
+            if (_hasPreview && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                PlaceEntityAt(engine, selectedAsset, snappedPos, currentLayerFromEditor);
+            }
+        } 
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle)
+        {
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && ImGui.IsWindowHovered())
+            {
+                _startRectPos = snappedPos;
+                _isDrawingRect = true;
+            }
+
+            if (ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                _currentRectPos = snappedPos;
+            }
+
+            if (_isDrawingRect && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+            {
+                _isDrawingRect = false;
+                float minX = MathF.Min(_startRectPos.X, _currentRectPos.X);
+                float maxX = MathF.Max(_startRectPos.X, _currentRectPos.X);
+                float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
+                float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
+
+                for (float x = minX; x <= maxX; x += GridSize)
+                {
+                    for (float y = minY; y <= maxY; y += GridSize)
+                    {
+                        PlaceEntityAt(engine, selectedAsset, new Vector2(x, y), currentLayerFromEditor);
+                    }
+                }
+            }
+        }
+    }
+
+    private void PlaceEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
+    {
+        int targetX = (int)MathF.Round(position.X);
+        int targetY = (int)MathF.Round(position.Y);
+        
+        var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
+            (int)MathF.Round(e.Position.X) == targetX && 
+            (int)MathF.Round(e.Position.Y) == targetY && 
+            e.ZIndex == layer);
+
+        if (existingTile != null)
+        {
+            if (existingTile.TexturePath == selectedAsset) return;
+            
+            engine.CurrentScene.DestroyEntity(existingTile);
+        }
+        
+        var tex = engine.AssetManager.GetTexture(selectedAsset);
+        var entity = new Entity(position, tex, "NewTile", selectedAsset);
+        entity.Name = selectedAsset.Split('/').Last().Split('.').First();
+        entity.ZIndex = layer;
+        engine.CurrentScene.AddEntity(entity);
+    }
+    
+    public void DrawPreview(Engine engine)
+    {
+        if (!_hasPreview || string.IsNullOrEmpty(_lastAsset)) return;
+        var tex = engine.AssetManager.GetTexture(_lastAsset);
+
+        if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
+        {
+            Raylib.DrawTextureV(tex, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
+        }
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            float minX = MathF.Min(_startRectPos.X, _currentRectPos.X);
+            float maxX = MathF.Max(_startRectPos.X, _currentRectPos.X);
+            float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
+            float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
+
+            for (float x = minX; x <= maxX; x += GridSize)
+            {
+                for (float y = minY; y <= maxY; y += GridSize)
+                {
+                    Raylib.DrawTextureV(tex, new Vector2(x, y), Raylib.Fade(Color.White, 0.5f));
+                }
+            }
+        }
+    }
+    
+    public void DrawGrid(RenderTexture2D viewport)
+    {
+        Color gridColor = new Color(50, 50, 50, 255);
+        int width = viewport.Texture.Width;
+        int height = viewport.Texture.Height;
+
+        for (int x = 0; x <= width; x += (int)GridSize)
+        {
+            Raylib.DrawLine(x, 0, x, height, gridColor);
+        }
+
+        for (int y = 0; y <= height; y += (int)GridSize)
+        {
+            Raylib.DrawLine(0, y, width, y, gridColor);
+        }
+    }
+}
+
+#---- ReforgeEditor/Tools/GridSnapper.cs
+namespace Reforge.Editor.Tools;
+
+public class GridSnapper
+{
+    
+}
+
+#---- ReforgeEditor/Tools/HighlighCellGizmo.cs
+using System.Numerics;
+using Raylib_cs;
+using Reforge.Editor.Core;
+using ReForge.Engine.World;
+
+namespace Reforge.Editor.Tools;
+
+public class HighlighCellGizmo
+{
+    float _blinkTimer = 0;
+
+    public void UpdateTimer()
+    {
+        _blinkTimer += Raylib.GetFrameTime();
+    }
+    
+    public void Draw(Entity? selectedEntity, bool forceHover = false)
+    {
+        float alpha = (MathF.Sin(_blinkTimer* 10f) + 1.0f) / 2.0f;
+
+        Rectangle highlight = new Rectangle(
+            selectedEntity.Position.X,
+            selectedEntity.Position.Y,
+            EditorConfig.GridSize,
+            EditorConfig.GridSize
+        );
+        
+        if (forceHover)
+        {
+            // alpha 0.5
+            Raylib.DrawRectangleLinesEx(highlight, 2, Raylib.Fade(Color.White, .5f));
+            Raylib.DrawRectangleRec(highlight, Raylib.Fade(Color.Gold, 0.2f * .5f));
+        }
+        else
+        {
+            Raylib.DrawRectangleLinesEx(highlight, 2, Raylib.Fade(Color.White, alpha));
+            Raylib.DrawRectangleRec(highlight, Raylib.Fade(Color.SkyBlue, 0.2f * alpha));
+        }
+    }
+}
+
+#---- ReforgeEditor/Core/EditorApp.cs
+    using Raylib_cs;
+    using rlImGui_cs;
+    using ImGuiNET;
+    using ReForge.Engine.Core;
+    using System.Numerics;
+    using Reforge.Editor.Tools;
+    using Reforge.Editor.UI;
+    using ReForge.Engin.Core;
+    using ReForge.Engine.World;
+
+    namespace Reforge.Editor.Core;
+
+    public class EditorApp
+    {
+        const int _appWidth = 1280;
+        const int _appHeight = 720;
+        Engine _engine;
+        bool _running = true;
+        int _currentLayer = 0;
+        
+        public enum EditorState {Editing, Playing};
+        EditorState _currentState = EditorState.Editing;
+        public List<Entity> _snapshotEntities = new List<Entity>();
+        public List<Entity> _selectedEntities = new List<Entity>();
+        
+        MapPainter _mapPainter = new MapPainter();
+        ViewportPanel _viewportPanel = new ViewportPanel();
+        ContentBrowser _contentBrowser = new ContentBrowser();
+        HierarchyPanel _hierarchyPanel = new HierarchyPanel();
+        LayerPanel _layerPanel = new LayerPanel();
+        InspectorPanel _inspectorPanel = new InspectorPanel();
+        HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
+        EditorSelector _editorSelector = new EditorSelector();
+        MenuBarPanel _menuBar = new MenuBarPanel();
+
+        public EditorApp()
+        {
+            _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
+            _engine.Initialize();
+            if (ProjectManager.TryLoadLastProject())
+            {
+                if (!string.IsNullOrEmpty(ProjectManager.CurrentProject.LastScenePath))
+                {
+                    string fullScenePath = Path.Combine(ProjectManager.ProjectRootPath,
+                        ProjectManager.CurrentProject.LastScenePath);
+                    if (File.Exists(fullScenePath))
+                    {
+                        SceneSerializer.Load(_engine.CurrentScene, _engine, fullScenePath);
+                        ProjectManager.CurrentSceneName = Path.GetFileNameWithoutExtension(fullScenePath);
+                        ProjectManager.CurrentScene = _engine.CurrentScene;
+                        Console.WriteLine("Dernière scène restaurée avec succès");
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Aucun projet précédent trouvé ou erreur lors du chargement.");
+                ProjectManager.CreateEmptyTemporaryProject();
+            }
+            EditorConfig.CurrentTool = EditorTool.Drawing;
+        }
+
+        public void Run()
+        {
+            rlImGui.Setup();
+            while(_running && !Raylib.WindowShouldClose())
+            {
+                float deltaTime = Raylib.GetFrameTime();
+
+                if (_currentState == EditorState.Playing)
+                {
+                    _engine.Update(deltaTime);
+                }
+        
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.DarkGray);
+        
+                rlImGui.Begin();
+                DrawUI();
+                rlImGui.End();
+        
+                Raylib.EndDrawing();
+            }
+            rlImGui.Shutdown();
+            Cleanup();
+        }
+
+        void DrawUI()
+        {
+            ImGui.DockSpaceOverViewport(0, ImGui.GetMainViewport());
+            
+            // Calcule du pourcentage pour l'inspecteur
+            float windowWidth = Raylib.GetScreenWidth();
+            float sidebarWidth = Math.Max(windowWidth * 0.15f, 200f);   // 15% ou 200px min
+            float inspectorWidth = Math.Max(windowWidth * 0.20f, 300f);
+            
+            // Assignation du contexte
+            var ctx = new EditorContext
+            {
+                State = _currentState,
+                SnapshotEntities = _snapshotEntities,
+                SelectedEntities = _selectedEntities,
+                EditorSelector = _editorSelector,
+                CurrentLayer = _currentLayer,
+                MapPainter = _mapPainter,
+                Hierarchy = _hierarchyPanel,
+                Gizmo = _gizmoHighlighCell,
+                ContentBrowser = _contentBrowser,
+                SidebarWidth = sidebarWidth, 
+                InspectorWidth = inspectorWidth,
+                MenuBarHeight = ImGui.GetFrameHeightWithSpacing()
+            };
+            
+            // Affichage des panneaux
+            _menuBar.Draw(_engine, ctx);
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, ctx);
+            _contentBrowser.Draw(_engine, ctx);
+            _layerPanel.Draw(ctx);
+            _viewportPanel.Draw(_engine, ctx, this);
+            _gizmoHighlighCell.UpdateTimer();
+            _inspectorPanel.Draw(ctx.SelectedEntities.FirstOrDefault(), ctx);
+
+            _currentState = ctx.State;
+            _currentLayer = ctx.CurrentLayer;
+        }
+
+        public void HandleEditorTools(Vector2 viewportPos)
+        {
+            Vector2 mousePos = ImGui.GetMousePos();
+            Vector2 relativeMousePos = mousePos - viewportPos;
+            
+            if (EditorConfig.CurrentTool == EditorTool.Drawing)
+            {
+                // Logique de dessin
+                if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
+                {
+                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
+                }
+            } 
+            else if (EditorConfig.CurrentTool == EditorTool.Selection)
+            {
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                {
+                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
+
+                    if (ImGui.GetIO().KeyCtrl)
+                    {
+                        if (entity != null)
+                        {
+                            if (_selectedEntities.Contains(entity)) _selectedEntities.Remove(entity);
+                            else _selectedEntities.Add(entity);
+                        }
+                    }
+                    else
+                    {
+                        _selectedEntities.Clear();
+                        if (entity != null) _selectedEntities.Add(entity);
+                    }
+                }
+
+                
+            }
+        }
+        
+        void Cleanup()
+        {
+            _engine.CleanUp();
+        }
+    }
+
+#---- ReforgeEditor/Core/EditorContext.cs
+using Reforge.Editor.Tools;
+using Reforge.Editor.UI;
+using ReForge.Engine.World;
+
+namespace Reforge.Editor.Core;
+
+public class EditorContext
+{
+    public EditorApp.EditorState State { get; set; }
+    public int CurrentLayer { get; set; }
+    public MapPainter MapPainter { get; set; }
+    public HierarchyPanel Hierarchy { get; set; }
+    public HighlighCellGizmo Gizmo { get; set; }
+    public float SidebarWidth { get; set; }
+    public float HierarchyHeight { get; set; }
+    public float BrowserContentHeight { get; set; }
+    public float InspectorWidth { get; set; }
+    public float MenuBarHeight { get; set; } = 20;
+    public ContentBrowser ContentBrowser { get; set; }
+    public List<Entity> SnapshotEntities { get; set; } = new List<Entity>();
+    public List<Entity> SelectedEntities { get; set; } = new List<Entity>();
+    public EditorSelector EditorSelector { get; set; }
+}
+
+#---- ReforgeEditor/Core/EditorConfig.cs
+namespace Reforge.Editor.Core;
+
+public enum EditorTool
+{
+    Drawing,
+    Selection
+}
+
+public enum PaintingMode
+{
+    Brush,
+    Rectangle
+}
+
+public static class EditorConfig
+{
+    public static float GridSize = 32.0f;
+    public static EditorTool CurrentTool = EditorTool.Selection;
+    public static PaintingMode CurrentPaintingMode = PaintingMode.Brush;
+}
+
+#---- ReforgeEditor/Core/EditorMath.cs
+using System.Numerics;
+using Raylib_cs;
+
+namespace Reforge.Editor.Core;
+
+public static class EditorMath
+{
+    public static Vector2 SnapToGrid(Vector2 position)
+    {
+        return new Vector2(
+            MathF.Floor(position.X / EditorConfig.GridSize) * EditorConfig.GridSize,
+            MathF.Floor(position.Y / EditorConfig.GridSize) * EditorConfig.GridSize
+        );
+    }
+
+    public static Vector2 SnapToGridRelativePos(Vector2 relativePosition)
+    {
+        return SnapToGrid(relativePosition);
+    }
+}
+
+#---- ReforgeEditor/Core/Program.cs
+namespace Reforge.Editor.Core;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var editor = new EditorApp();
+        editor.Run();
+    }
+}
+
