@@ -1,4 +1,6 @@
 using Raylib_cs;
+using ReForge.Engine.World.Components;
+
 namespace ReForge.Engine.World.Behaviors;
 
 public class BoxCollider: Behavior
@@ -24,8 +26,15 @@ public class BoxCollider: Behavior
     
     public override void Update(float deltaTime)
     {
-        if (Width == 0) Width = Owner.Texture.Width;
-        if (Height == 0) Height = Owner.Texture.Height;
+        if (Width == 0 || Height == 0)
+        {
+            var sprite = Owner.GetBehavior<SpriteComponent>();
+            if(sprite != null && sprite.Texture.Id != 0)
+            {
+                Width = sprite.Texture.Width;
+                Height = sprite.Texture.Height;
+            }
+        }
     }
 
     public override Behavior Clone()

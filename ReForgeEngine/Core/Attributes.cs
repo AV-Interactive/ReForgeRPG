@@ -6,3 +6,8 @@ using System;
 public class HiddenBehaviorAttribute : Attribute 
 {
 }
+
+[AttributeUsage(AttributeTargets.Class)]
+public class HiddenSelectableBehaviorAttribute : Attribute
+{
+}

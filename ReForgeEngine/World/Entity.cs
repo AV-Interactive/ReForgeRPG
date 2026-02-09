@@ -8,15 +8,33 @@ namespace ReForge.Engine.World;
 
 public class Entity
 {
+    // Fields
+    private List<Behavior> _behaviors = new List<Behavior>();
+    private List<string> _tags = new List<string>();
+
+    // Properties
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "Nouvel element";
+    public int ZIndex { get; set; } = 0;
+
     public Vector2 Position 
     {
         get => GetBehavior<TransformComponent>().Position;
         set => GetBehavior<TransformComponent>().Position = value;
     }
-    public int ZIndex { get; set; } = 0;
-    public string TexturePath { get; set; } = "";
+
+    public string TexturePath
+    {
+        get => GetBehavior<SpriteComponent>()?.TexturePath ?? "";
+        set => GetBehavior<SpriteComponent>()?.TexturePath = value;
+    }
+
+    [JsonIgnore]
+    public Texture2D Texture
+    {
+        get => GetBehavior<SpriteComponent>()?.Texture ?? new Texture2D();
+        set { if(GetBehavior<SpriteComponent>()?.Texture != null) GetBehavior<SpriteComponent>().Texture = value; }
+    }
 
     public List<string> Tags
     {
@@ -30,18 +48,15 @@ public class Entity
         set => _behaviors = value;
     }
 
+    public TransformComponent Transform => GetBehavior<TransformComponent>();
+    public SpriteComponent Sprite => GetBehavior<SpriteComponent>();
+
+    // Constructors
     public Entity()
     {
         AddBehavior(new TransformComponent());
+        AddBehavior(new SpriteComponent());
     }
-    
-    public TransformComponent Transform => GetBehavior<TransformComponent>();
-
-    [JsonIgnore]
-    public Texture2D Texture { get; set; }
-    
-    List<Behavior> _behaviors = new List<Behavior>();
-    List<string> _tags = new List<string>();
 
     public Entity(Vector2 position, Texture2D texture, string name, string texturePath) : this()
     {
@@ -51,6 +66,21 @@ public class Entity
         Name = name;
     }
 
+    // Public Methods
+    public virtual void Update(float deltaTime)
+    {
+        foreach (Behavior behavior in _behaviors)
+        {
+            behavior.Update(deltaTime);
+        }
+    }
+
+    public virtual void Draw()
+    {
+        Raylib.DrawTextureV(Texture, Position, Color.White);
+    }
+
+    // Behavior Management
     public void AddBehavior(Behavior behavior)
     {
         behavior.Owner = this;
@@ -73,25 +103,25 @@ public class Entity
         _behaviors.Remove(behavior);
     }
 
-    public virtual void Draw()
-    {
-        Raylib.DrawTextureV(Texture, Position, Color.White);
-    }
-
     public T? GetBehavior<T>() where T : Behavior
     {
-        // On regarde si un comportement specifique existe dans la liste
         return _behaviors.OfType<T>().FirstOrDefault();
     }
-    
-    public virtual void Update(float deltaTime)
+
+    public void BroadcastEvent(string eventName, object data)
     {
         foreach (Behavior behavior in _behaviors)
         {
-            behavior.Update(deltaTime);
+            behavior.OnReceivedEvent(eventName, data);
         }
     }
 
+    // Tag Management
+    public void AddTag(string tag) => _tags.Add(tag);
+    public bool HasTag(string tag) => _tags.Contains(tag);
+    public void RemoveTag(string tag) => _tags.Remove(tag);
+
+    // Lifecycle
     public Entity Clone()
     {
         var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
@@ -106,16 +136,4 @@ public class Entity
         
         return clone;
     }
-
-    public void BroadcastEvent(string eventName, object data)
-    {
-        foreach (Behavior behavior in _behaviors)
-        {
-            behavior.OnReceivedEvent(eventName, data);
-        }
-    }
-    
-    public void AddTag(string tag) => _tags.Add(tag);
-    public bool HasTag(string tag) => _tags.Contains(tag);
-    public void RemoveTag(string tag) => _tags.Remove(tag);
 }

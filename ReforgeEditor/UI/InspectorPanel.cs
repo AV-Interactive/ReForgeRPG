@@ -93,6 +93,8 @@ public class InspectorPanel
 
         foreach (var behavior in selectedEntity.Behaviors)
         {
+            if (behavior.GetType().GetCustomAttribute<HiddenBehaviorAttribute>() != null) continue;
+            
             ImGui.PushID(behavior.GetHashCode());
             
             bool open = ImGui.TreeNodeEx(behavior.GetType().Name, ImGuiTreeNodeFlags.DefaultOpen);
@@ -264,7 +266,8 @@ public class InspectorPanel
             .Where(p => typeof(Behavior).IsAssignableFrom(p) 
                         && !p.IsAbstract 
                         && p != typeof(Behavior)
-                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null)
+                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null
+                        && p.GetCustomAttribute<HiddenSelectableBehaviorAttribute>() == null)
             .ToList();
     }
     

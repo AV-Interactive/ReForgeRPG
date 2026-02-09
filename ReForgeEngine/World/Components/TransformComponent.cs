@@ -1,7 +1,9 @@
 using System.Numerics;
+using ReForge.Engine.Core;
 
 namespace ReForge.Engine.World.Components;
 
+[HiddenBehavior]
 public class TransformComponent: Behavior
 {
     public Vector2 Position { get; set; }

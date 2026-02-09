@@ -72,25 +72,19 @@ public static class SceneSerializer
 
                 foreach (var entity in loadedEntities)
                 {
-                    // 1. On restaure la texture
                     if (!string.IsNullOrEmpty(entity.TexturePath))
                     {
                         entity.Texture = engine.AssetManager.GetTexture(entity.TexturePath);
                     }
 
-                    // 2. TRANSFERT CRUCIAL : Du JSON vers le moteur
-                    // On récupère les Behaviors que le JSON a mis dans la propriété publique
                     if (entity.Behaviors != null)
                     {
-                        // On crée une copie temporaire pour ne pas modifier la liste pendant qu'on boucle
                         var behaviorsToRestore = entity.Behaviors.ToList();
                     
-                        // On vide la liste pour passer par AddBehavior (qui gère l'Owner et la liste privée)
                         entity.Behaviors.Clear(); 
 
                         foreach (var behavior in behaviorsToRestore)
                         {
-                            // Cette méthode va remplir _behaviors ET mettre l'Owner
                             entity.AddBehavior(behavior); 
                         }
                     }

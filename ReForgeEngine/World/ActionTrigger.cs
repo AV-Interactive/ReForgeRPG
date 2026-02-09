@@ -1,7 +1,7 @@
 namespace ReForge.Engine.World;
 using ReForge.Engine.Core;
 
-[HiddenBehavior]
+[HiddenSelectableBehavior] 
 public class ActionTrigger: Behavior
 {
     public List<ActionCommand> OnEnterActions { get; set; } = new();

@@ -1,4 +1,4 @@
-#---- ReForge.Engine/Core/ProjectManager.cs
+#---- ReForgeEngine/Core/ProjectManager.cs
 using System.Text.Json;
 using ReForge.Engine.Core;
 using ReForge.Engine.World;
@@ -132,15 +132,21 @@ public static class ProjectManager
     public static void SaveScene()
     {
         if (CurrentProject == null || string.IsNullOrEmpty(CurrentSceneName)) return;
+        
         string scenePath = Path.Combine(ProjectRootPath, CurrentProject.SceneDirectory);
+        string sceneRelativePath = Path.Combine(CurrentProject.SceneDirectory, $"{CurrentSceneName}.scn");
         Directory.CreateDirectory(scenePath);
         string fullPath = Path.Combine(scenePath, $"{CurrentSceneName}.scn");
         
+        CurrentProject.LastScenePath = sceneRelativePath;
+        
         SceneSerializer.Save(CurrentScene, fullPath);
+        
+        SaveProject();
     }
 }
 
-#---- ReForge.Engine/Core/Attributes.cs
+#---- ReForgeEngine/Core/Attributes.cs
 namespace ReForge.Engine.Core;
 
 using System;
@@ -150,7 +156,7 @@ public class HiddenBehaviorAttribute : Attribute
 {
 }
 
-#---- ReForge.Engine/Core/AssetManager.cs
+#---- ReForgeEngine/Core/AssetManager.cs
 using Raylib_cs;
 
 namespace ReForge.Engine.Core;
@@ -178,7 +184,7 @@ public class AssetManager
     }
 }
 
-#---- ReForge.Engine/Core/SceneSerializer.cs
+#---- ReForgeEngine/Core/SceneSerializer.cs
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -288,7 +294,7 @@ public static class SceneSerializer
     }
 }
 
-#---- ReForge.Engine/Core/Engine.cs
+#---- ReForgeEngine/Core/Engine.cs
 using Raylib_cs;
 using ReForge.Engine.World;
 
@@ -360,7 +366,7 @@ public class Engine
     public void DestroyEntity(Entity entity) => CurrentScene.DestroyEntity(entity);
 }
 
-#---- ReForge.Engine/Core/ProjectSettings.cs
+#---- ReForgeEngine/Core/ProjectSettings.cs
 namespace ReForge.Engine.Core;
 
 public enum AssetType
@@ -378,6 +384,7 @@ public class ProjectSettings
     public string ProjectName { get; set; } = "Untitled";
     public string AssetDirectory { get; set; } = "Assets";
     public string SceneDirectory { get; set; } = "Scenes";
+    public string LastScenePath { get; set; }
     public string StartScenePath { get; set; }
 
     public string GetFullPath(string relativePath)
@@ -386,7 +393,7 @@ public class ProjectSettings
     }
 }
 
-#---- ReForge.Engine/World/Scene.cs
+#---- ReForgeEngine/World/Scene.cs
 using Raylib_cs;
 using ReForge.Engine.Physics;
 
@@ -441,7 +448,7 @@ public class Scene
     public List<Entity> Entities => _entities;
 }
 
-#---- ReForge.Engine/World/ActionCommand.cs
+#---- ReForgeEngine/World/ActionCommand.cs
 using System.Numerics;
 
 namespace ReForge.Engine.World;
@@ -462,7 +469,7 @@ public class ActionCommand
     public Vector2 Destination { get; set; }
 }
 
-#---- ReForge.Engine/World/Tilemap.cs
+#---- ReForgeEngine/World/Tilemap.cs
 using System.Numerics;
 using Raylib_cs;
 
@@ -546,7 +553,7 @@ public class Tilemap: Entity
     }
 }
 
-#---- ReForge.Engine/World/Behavior.cs
+#---- ReForgeEngine/World/Behavior.cs
 using System.Text.Json.Serialization;
 
 namespace ReForge.Engine.World;
@@ -562,7 +569,7 @@ public abstract class Behavior
     public virtual void OnReceivedEvent(string eventName, object? data = null) {}
 }
 
-#---- ReForge.Engine/World/Components/TransformComponent.cs
+#---- ReForgeEngine/World/Components/TransformComponent.cs
 using System.Numerics;
 
 namespace ReForge.Engine.World.Components;
@@ -585,7 +592,7 @@ public class TransformComponent: Behavior
     }
 }
 
-#---- ReForge.Engine/World/Behaviors/Oscillator.cs
+#---- ReForgeEngine/World/Behaviors/Oscillator.cs
 using System.Numerics;
 
 namespace ReForge.Engine.World.Behaviors;
@@ -627,7 +634,7 @@ public class Oscillator: Behavior
     }
 }
 
-#---- ReForge.Engine/World/Behaviors/BoxCollider.cs
+#---- ReForgeEngine/World/Behaviors/BoxCollider.cs
 using Raylib_cs;
 namespace ReForge.Engine.World.Behaviors;
 
@@ -674,7 +681,7 @@ public class BoxCollider: Behavior
     }
 }
 
-#---- ReForge.Engine/World/Behaviors/InputMovable.cs
+#---- ReForgeEngine/World/Behaviors/InputMovable.cs
 using System.Numerics;
 using Raylib_cs;
 
@@ -702,7 +709,7 @@ public class InputMovable: Behavior
     }
 }
 
-#---- ReForge.Engine/World/ActionTrigger.cs
+#---- ReForgeEngine/World/ActionTrigger.cs
 namespace ReForge.Engine.World;
 using ReForge.Engine.Core;
 
@@ -780,7 +787,7 @@ public class ActionTrigger: Behavior
         }
     }
 }
-#---- ReForge.Engine/World/Entity.cs
+#---- ReForgeEngine/World/Entity.cs
 using System.Numerics;
 using System.Text.Json.Serialization;
 using Raylib_cs;
@@ -791,6 +798,7 @@ namespace ReForge.Engine.World;
 
 public class Entity
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "Nouvel element";
     public Vector2 Position 
     {
@@ -843,6 +851,8 @@ public class Entity
             trigger.Owner = this;
             AddBehavior(trigger);
         }
+
+        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) return;
         
         _behaviors.Add(behavior);
         behavior.Initialize();
@@ -874,7 +884,7 @@ public class Entity
 
     public Entity Clone()
     {
-        var clone = new Entity(this.Position, this.Texture, this.Name + "_Copy", this.TexturePath);
+        var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
         
         foreach (var tag in _tags) clone.AddTag(tag);
 
@@ -900,7 +910,7 @@ public class Entity
     public void RemoveTag(string tag) => _tags.Remove(tag);
 }
 
-#---- ReForge.Engine/Physics/CollisionSystem.cs
+#---- ReForgeEngine/Physics/CollisionSystem.cs
 using System.Numerics;
 using Raylib_cs;
 using ReForge.Engine.World;
