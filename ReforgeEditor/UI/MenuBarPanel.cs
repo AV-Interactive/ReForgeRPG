@@ -22,16 +22,23 @@ public class MenuBarPanel
         {
             if (ImGui.BeginMenu("Fichier"))
             {
-                if (ImGui.MenuItem("Sauvegarder"))
+                if (ctx.State == EditorApp.EditorState.Editing)
                 {
-                    if (ProjectManager.IsSaved)
+                    if (ImGui.MenuItem("Sauvegarder"))
                     {
-                        ProjectManager.SaveProject();
+                        if (ProjectManager.IsSaved)
+                        {
+                            ProjectManager.SaveProject();
+                        }
+                        else
+                        {
+                            _showSavePopup = true;
+                        }
                     }
-                    else
-                    {
-                        _showSavePopup = true;
-                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Sauvegarder");
                 }
                 
                 if (ImGui.MenuItem("Sauvegarder la Scène actuelle"))
@@ -93,7 +100,17 @@ public class MenuBarPanel
                 
             if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
-                if (ImGui.MenuItem("Selection")) EditorConfig.CurrentTool = EditorTool.Selection;
+                if (ImGui.MenuItem("Sélection")) EditorConfig.CurrentTool = EditorTool.Selection;
+                
+                ImGui.Separator();
+                
+                if (ImGui.RadioButton("Pinceau", EditorConfig.CurrentPaintingMode == PaintingMode.Brush))
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Brush;
+                
+                ImGui.SameLine();
+                
+                if (ImGui.RadioButton("Rectangle", EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle))
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Rectangle;
             }
             else
             {

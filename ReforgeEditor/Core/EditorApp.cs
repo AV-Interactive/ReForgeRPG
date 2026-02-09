@@ -36,17 +36,27 @@
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
+            _engine.Initialize();
             if (ProjectManager.TryLoadLastProject())
             {
-                Console.WriteLine($"Projet chargé : {ProjectManager.CurrentProject.ProjectName}");
-                Console.WriteLine($"Etat de IsSaved : {ProjectManager.IsSaved}");
+                if (!string.IsNullOrEmpty(ProjectManager.CurrentProject.LastScenePath))
+                {
+                    string fullScenePath = Path.Combine(ProjectManager.ProjectRootPath,
+                        ProjectManager.CurrentProject.LastScenePath);
+                    if (File.Exists(fullScenePath))
+                    {
+                        SceneSerializer.Load(_engine.CurrentScene, _engine, fullScenePath);
+                        ProjectManager.CurrentSceneName = Path.GetFileNameWithoutExtension(fullScenePath);
+                        ProjectManager.CurrentScene = _engine.CurrentScene;
+                        Console.WriteLine("Dernière scène restaurée avec succès");
+                    }
+                }
             }
             else
             {
                 Console.WriteLine($"Aucun projet précédent trouvé ou erreur lors du chargement.");
                 ProjectManager.CreateEmptyTemporaryProject();
             }
-            _engine.Initialize();
             EditorConfig.CurrentTool = EditorTool.Drawing;
         }
 

@@ -23,10 +23,11 @@ public class HierarchyPanel
         if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
             WindowPosition = ImGui.GetWindowPos();
+            int i = 0;
             foreach (Entity entity in entities)
             {
                 bool isSelected = ctx.SelectedEntities.Contains(entity);
-                if (ImGui.Selectable($"{entity.Name}", isSelected))
+                if (ImGui.Selectable($"{entity.Name}##{i}_{entity.GetHashCode()}", isSelected))
                 {
                     if (ImGui.GetIO().KeyCtrl)
                     {
@@ -40,6 +41,7 @@ public class HierarchyPanel
                         ctx.SelectedEntities.Add(entity);
                     }
                 }
+                i++;
             }
         }
         ImGui.End();

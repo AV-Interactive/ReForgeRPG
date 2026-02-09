@@ -14,7 +14,10 @@ public class MapPainter
     Vector2 _lastSnappedPos;
     bool _hasPreview;
     string _lastAsset = string.Empty;
-    
+    Vector2 _startRectPos;
+    Vector2 _currentRectPos;
+    bool _isDrawingRect;
+
     public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 relativeMousePos)
     {
         if (string.IsNullOrEmpty(selectedAsset))
@@ -30,34 +33,93 @@ public class MapPainter
         _hasPreview = ImGui.IsWindowHovered();
         _lastAsset = selectedAsset;
 
-        if (_hasPreview && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
         {
-            int targetX = (int)MathF.Round(snappedPos.X);
-            int targetY = (int)MathF.Round(snappedPos.Y);
-
-            var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
-                (int)MathF.Round(e.Position.X) == targetX && 
-                (int)MathF.Round(e.Position.Y) == targetY && 
-                e.ZIndex == currentLayerFromEditor);
-
-            if (existingTile != null)
+            if (_hasPreview && ImGui.IsMouseDown(ImGuiMouseButton.Left))
             {
-                engine.CurrentScene.DestroyEntity(existingTile);
+                PlaceEntityAt(engine, selectedAsset, snappedPos, currentLayerFromEditor);
             }
-            
-            var tex = engine.AssetManager.GetTexture(selectedAsset);
-            var entity = new Entity(snappedPos, tex, "NewTile", selectedAsset);
-            entity.Name = selectedAsset.Split('/').Last().Split('.').First();
-            entity.ZIndex = currentLayerFromEditor;
-            engine.CurrentScene.AddEntity(entity);
+        } 
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle)
+        {
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && ImGui.IsWindowHovered())
+            {
+                _startRectPos = snappedPos;
+                _isDrawingRect = true;
+            }
+
+            if (ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                _currentRectPos = snappedPos;
+            }
+
+            if (_isDrawingRect && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+            {
+                _isDrawingRect = false;
+                float minX = MathF.Min(_startRectPos.X, _currentRectPos.X);
+                float maxX = MathF.Max(_startRectPos.X, _currentRectPos.X);
+                float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
+                float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
+
+                for (float x = minX; x <= maxX; x += GridSize)
+                {
+                    for (float y = minY; y <= maxY; y += GridSize)
+                    {
+                        PlaceEntityAt(engine, selectedAsset, new Vector2(x, y), currentLayerFromEditor);
+                    }
+                }
+            }
         }
+    }
+
+    private void PlaceEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
+    {
+        int targetX = (int)MathF.Round(position.X);
+        int targetY = (int)MathF.Round(position.Y);
+        
+        var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
+            (int)MathF.Round(e.Position.X) == targetX && 
+            (int)MathF.Round(e.Position.Y) == targetY && 
+            e.ZIndex == layer);
+
+        if (existingTile != null)
+        {
+            if (existingTile.TexturePath == selectedAsset) return;
+            
+            engine.CurrentScene.DestroyEntity(existingTile);
+        }
+        
+        var tex = engine.AssetManager.GetTexture(selectedAsset);
+        var entity = new Entity(position, tex, "NewTile", selectedAsset);
+        entity.Name = selectedAsset.Split('/').Last().Split('.').First();
+        entity.ZIndex = layer;
+        engine.CurrentScene.AddEntity(entity);
     }
     
     public void DrawPreview(Engine engine)
     {
         if (!_hasPreview || string.IsNullOrEmpty(_lastAsset)) return;
         var tex = engine.AssetManager.GetTexture(_lastAsset);
-        Raylib.DrawTextureV(tex, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
+
+        if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
+        {
+            Raylib.DrawTextureV(tex, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
+        }
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            float minX = MathF.Min(_startRectPos.X, _currentRectPos.X);
+            float maxX = MathF.Max(_startRectPos.X, _currentRectPos.X);
+            float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
+            float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
+
+            for (float x = minX; x <= maxX; x += GridSize)
+            {
+                for (float y = minY; y <= maxY; y += GridSize)
+                {
+                    Raylib.DrawTextureV(tex, new Vector2(x, y), Raylib.Fade(Color.White, 0.5f));
+                }
+            }
+        }
     }
     
     public void DrawGrid(RenderTexture2D viewport)

@@ -57,11 +57,12 @@ public class ContentBrowser
                         {
                             SelectedAsset = file;
                         }
-                        
-                        //Scenes
+            
                         if (_currentType == AssetType.Scenes)
                         {
                             SceneSerializer.Load(engine.CurrentScene, engine, file);
+                            ProjectManager.CurrentSceneName = fileNameWhithoutExtension;
+                            ProjectManager.CurrentScene = engine.CurrentScene;
                         }
                     }
                     ImGui.EndChild();

@@ -131,10 +131,16 @@ public static class ProjectManager
     public static void SaveScene()
     {
         if (CurrentProject == null || string.IsNullOrEmpty(CurrentSceneName)) return;
+        
         string scenePath = Path.Combine(ProjectRootPath, CurrentProject.SceneDirectory);
+        string sceneRelativePath = Path.Combine(CurrentProject.SceneDirectory, $"{CurrentSceneName}.scn");
         Directory.CreateDirectory(scenePath);
         string fullPath = Path.Combine(scenePath, $"{CurrentSceneName}.scn");
         
+        CurrentProject.LastScenePath = sceneRelativePath;
+        
         SceneSerializer.Save(CurrentScene, fullPath);
+        
+        SaveProject();
     }
 }
