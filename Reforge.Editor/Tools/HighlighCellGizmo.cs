@@ -8,27 +8,14 @@ namespace Reforge.Editor.Tools;
 public class HighlighCellGizmo
 {
     float _blinkTimer = 0;
-    bool _isHovered = false;
 
-    public void Update(Entity? selectedEntity, Vector2 viewportPos)
-    {
-        if (selectedEntity == null)
-        {
-            _isHovered = false;
-            return;
-        }
-        
-        Vector2 relativeMousePos = ImGuiNET.ImGui.GetMousePos() - viewportPos;
-        
-        _isHovered = relativeMousePos.X >= selectedEntity.Position.X &&
-                     relativeMousePos.X <  selectedEntity.Position.X + EditorConfig.GridSize &&
-                     relativeMousePos.Y >= selectedEntity.Position.Y &&
-                     relativeMousePos.Y <  selectedEntity.Position.Y + EditorConfig.GridSize;
-    }
-
-    public void Draw(Entity? selectedEntity)
+    public void UpdateTimer()
     {
         _blinkTimer += Raylib.GetFrameTime();
+    }
+    
+    public void Draw(Entity? selectedEntity, bool forceHover = false)
+    {
         float alpha = (MathF.Sin(_blinkTimer* 10f) + 1.0f) / 2.0f;
 
         Rectangle highlight = new Rectangle(
@@ -38,7 +25,7 @@ public class HighlighCellGizmo
             EditorConfig.GridSize
         );
         
-        if (_isHovered)
+        if (forceHover)
         {
             // alpha 0.5
             Raylib.DrawRectangleLinesEx(highlight, 2, Raylib.Fade(Color.White, .5f));

@@ -18,4 +18,6 @@ public class EditorContext
     public float MenuBarHeight { get; set; } = 20;
     public ContentBrowser ContentBrowser { get; set; }
     public List<Entity> SnapshotEntities { get; set; } = new List<Entity>();
+    public List<Entity> SelectedEntities { get; set; } = new List<Entity>();
+    public EditorSelector EditorSelector { get; set; }
 }

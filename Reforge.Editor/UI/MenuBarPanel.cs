@@ -75,7 +75,7 @@ public class MenuBarPanel
             {
                 if (ImGui.MenuItem("Stop"))
                 {
-                    ctx.Hierarchy.SelectedEntity = null;
+                    ctx.SelectedEntities = null;
                     engine.CurrentScene.Entities.Clear();
                     foreach (var entity in ctx.SnapshotEntities)
                     {

@@ -10,7 +10,6 @@ public class HierarchyPanel
 {
     RenderTexture2D _viewportRes;
     public Vector2 WindowPosition { get; private set; }
-    public Entity? SelectedEntity { get; set; }
     
     public void Draw(IEnumerable<Entity> entities, EditorContext ctx)
     {
@@ -26,9 +25,20 @@ public class HierarchyPanel
             WindowPosition = ImGui.GetWindowPos();
             foreach (Entity entity in entities)
             {
-                if (ImGui.Selectable($"{entity.Name}##{entity.GetHashCode()}", entity == ctx.Hierarchy.SelectedEntity))
+                bool isSelected = ctx.SelectedEntities.Contains(entity);
+                if (ImGui.Selectable($"{entity.Name}#{entity.GetHashCode()}", isSelected))
                 {
-                    ctx.Hierarchy.SelectedEntity = entity;
+                    if (ImGui.GetIO().KeyCtrl)
+                    {
+
+                        if (isSelected) ctx.SelectedEntities.Remove(entity);
+                        else ctx.SelectedEntities.Add(entity);
+                    }
+                    else
+                    {
+                        ctx.SelectedEntities.Clear();
+                        ctx.SelectedEntities.Add(entity);
+                    }
                 }
             }
         }

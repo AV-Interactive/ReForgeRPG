@@ -27,10 +27,17 @@ public class ViewportPanel
         {
             ctx.MapPainter.DrawGrid(_viewportRes);
             ctx.MapPainter.DrawPreview(engine);
+            
+            Vector2 mousePos = ImGui.GetMousePos();
+            Vector2 relativeMousePos = mousePos - WindowPosition;
+            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+            
+            var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, snappedPos, ctx.CurrentLayer);
 
-            if (ctx.Hierarchy.SelectedEntity != null)
+            foreach (var entity in ctx.SelectedEntities)
             {
-                ctx.Gizmo.Draw(ctx.Hierarchy.SelectedEntity);
+                bool isHovered  = (entity == hoveredEntity);
+                ctx.Gizmo.Draw(entity, isHovered);
             }
         }
         

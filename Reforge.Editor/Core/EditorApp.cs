@@ -21,6 +21,7 @@
         public enum EditorState {Editing, Playing};
         EditorState _currentState = EditorState.Editing;
         public List<Entity> _snapshotEntities = new List<Entity>();
+        public List<Entity> _selectedEntities = new List<Entity>();
         
         MapPainter _mapPainter = new MapPainter();
         ViewportPanel _viewportPanel = new ViewportPanel();
@@ -88,6 +89,8 @@
             {
                 State = _currentState,
                 SnapshotEntities = _snapshotEntities,
+                SelectedEntities = _selectedEntities,
+                EditorSelector = _editorSelector,
                 CurrentLayer = _currentLayer,
                 MapPainter = _mapPainter,
                 Hierarchy = _hierarchyPanel,
@@ -104,7 +107,8 @@
             _contentBrowser.Draw(_engine, ctx);
             _layerPanel.Draw(ctx);
             _viewportPanel.Draw(_engine, ctx, this);
-            _inspectorPanel.Draw(_hierarchyPanel.SelectedEntity, ctx);
+            _gizmoHighlighCell.UpdateTimer();
+            _inspectorPanel.Draw(ctx.SelectedEntities.FirstOrDefault(), ctx);
 
             _currentState = ctx.State;
             _currentLayer = ctx.CurrentLayer;
@@ -129,12 +133,23 @@
                 {
                     Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
                     Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
-                    _hierarchyPanel.SelectedEntity = entity;
+
+                    if (ImGui.GetIO().KeyCtrl)
+                    {
+                        if (entity != null)
+                        {
+                            if (_selectedEntities.Contains(entity)) _selectedEntities.Remove(entity);
+                            else _selectedEntities.Add(entity);
+                        }
+                    }
+                    else
+                    {
+                        _selectedEntities.Clear();
+                        if (entity != null) _selectedEntities.Add(entity);
+                    }
                 }
-                if (_hierarchyPanel.SelectedEntity != null)
-                {
-                    _gizmoHighlighCell.Update(_hierarchyPanel.SelectedEntity, viewportPos);
-                }
+
+                
             }
         }
         
