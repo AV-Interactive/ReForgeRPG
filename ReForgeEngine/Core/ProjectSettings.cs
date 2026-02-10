@@ -17,6 +17,7 @@ public class ProjectSettings
     public string SceneDirectory { get; set; } = "Scenes";
     public string LastScenePath { get; set; }
     public string StartScenePath { get; set; }
+    public int TileSize { get; set; } = 32;
 
     public string GetFullPath(string relativePath)
     {

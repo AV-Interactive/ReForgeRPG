@@ -12,31 +12,82 @@ public class TileLayer
     
     public TileLayer(int width, int height)
     {
-        Data = new int[width][];
-        for (int i = 0; i < width; i++)
+        Data = new int[height][];
+        for (int i = 0; i < height; i++)
         {
-            Data[i] = new int[height];
+            Data[i] = new int[width];
         }
+    }
+    
+    public void Resize(int newWidth, int newHeight)
+    {
+        int[][] newData = new int[newHeight][];
+        for (int i = 0; i < newHeight; i++)
+        {
+            newData[i] = new int[newWidth];
+            if (i < Data.Length)
+            {
+                Array.Copy(
+                    Data[i], 
+                    newData[i], 
+                    Math.Min(Data[i].Length, newWidth)
+                );
+            }
+        }
+        Data = newData;
     }
 }
 
 public class Tilemap: Entity
 {
-    List<TileLayer> _layers = new List<TileLayer>();
-    int _tileSize;
-    Texture2D _tileset;
+    public List<TileLayer> Layers { get; set; } = new List<TileLayer>();
+    public int TileSize { get; set; }
     
-    public Tilemap(Vector2 position, int tileSize, Texture2D tileset, string texturePath) : base(position, tileset, "Tilemap", texturePath)
+    [System.Text.Json.Serialization.JsonIgnore] 
+    public new Texture2D Texture { get; set; }
+    
+    public Tilemap(): base() { }
+    
+    public Tilemap(Vector2 position, int tileSize, Texture2D texture, string texturePath) : base(position, texture, "Tilemap", texturePath)
     {
-        _tileSize = tileSize;
-        _tileset = tileset;
+        TileSize = tileSize;
+        this.Texture = texture;
     }
     
-    public void AddLayer(TileLayer layer) => _layers.Add(layer);
+    public List<TileLayer> GetLayers() => Layers;
+    public void AddLayer(TileLayer layer) => Layers.Add(layer);
     
     public override void Draw()
     {
-        foreach (TileLayer layer in _layers)
+        // Si aucune tuile à dessiner (toutes les layers vides), on dessine le sprite de base
+        bool hasAnyTile = false;
+        foreach (var layer in Layers)
+        {
+            int h = layer.Data.Length;
+            if (h == 0) continue;
+            int w = layer.Data[0].Length;
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    if (layer.Data[y][x] != 0)
+                    {
+                        hasAnyTile = true;
+                        break;
+                    }
+                }
+                if (hasAnyTile) break;
+            }
+            if (hasAnyTile) break;
+        }
+
+        if (!hasAnyTile)
+        {
+            base.Draw();
+            return;
+        }
+
+        foreach (TileLayer layer in Layers)
         {
             DrawLayer(layer);
         }
@@ -44,17 +95,20 @@ public class Tilemap: Entity
 
     public void DrawLayer(TileLayer layer)
     {
-        for (int y = 0; y < layer.Data.GetLength(1); y++)
+        int gridHeight = layer.Data.Length;
+        int gridWidth = layer.Data[0].Length;
+        
+        for (int y = 0; y < gridHeight; y++)
         {
-            for (int x = 0; x < layer.Data.GetLength(0); x++)
-            {
-                int tileId = layer.Data[x][y];
+            for (int x = 0; x < gridWidth; x++)
+            {   
+                int tileId = layer.Data[y][x];
 
                 if (tileId == 0) continue;
 
                 Vector2 screenPos = new Vector2(
-                    Position.X + (x * _tileSize), 
-                    Position.Y + (y * _tileSize)
+                    Position.X + (x * TileSize), 
+                    Position.Y + (y * TileSize)
                 );
 
                 DrawTile(tileId, screenPos);
@@ -62,21 +116,26 @@ public class Tilemap: Entity
         }
     }
     
-    private void DrawTile(int tileId, Vector2 screenPos)
+    void DrawTile(int tileId, Vector2 screenPos)
     {
-        int tilesPerRow = _tileset.Width / _tileSize;
+        if(Texture.Id == 0 || TileSize <= 0) return;
+        
+        int tilesPerRow = Texture.Width / TileSize;
+        
+        if(tilesPerRow <= 0) return;
 
-        int column = tileId % tilesPerRow;
-        int row = tileId / tilesPerRow;
+        // Les IDs stockés dans la layer sont 1-based (0 = vide)
+        int atlasIndex = tileId - 1;
+        int column = atlasIndex % tilesPerRow;
+        int row = atlasIndex / tilesPerRow;
 
-        // 3. Créer le rectangle source (quelle zone de l'image on prend)
         Rectangle sourceRec = new Rectangle(
-            column * _tileSize, 
-            row * _tileSize, 
-            _tileSize, 
-            _tileSize
+            column * TileSize, 
+            row * TileSize, 
+            TileSize, 
+            TileSize
         );
 
-        Raylib.DrawTextureRec(_tileset, sourceRec, screenPos, Color.White);
+        Raylib.DrawTextureRec(Texture, sourceRec, screenPos, Color.White);
     }
 }

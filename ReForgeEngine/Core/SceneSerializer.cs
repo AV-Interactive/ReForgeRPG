@@ -2,22 +2,37 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using ReForge.Engin.Core;
 using ReForge.Engine.World;
+using ReForge.Engine.World.Components;
 
 namespace ReForge.Engine.Core;
 
 public static class SceneSerializer
 {
-    private static JsonSerializerOptions _options = new JsonSerializerOptions
+    static JsonSerializerOptions _options = new JsonSerializerOptions
     {
         WriteIndented = true,
         IncludeFields = true,
         UnknownTypeHandling = (JsonUnknownTypeHandling)JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor,
+        
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { CreateBehaviorResolver }
+            Modifiers = { CreateBehaviorResolver, CreateEntityResolver }
         }
     };
+
+    static void CreateEntityResolver(JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Type == typeof(Entity))
+        {
+            var polymorphismOptions = new JsonPolymorphismOptions();
+        
+            polymorphismOptions.DerivedTypes.Add(new JsonDerivedType(typeof(Tilemap), "Tilemap"));
+            
+            typeInfo.PolymorphismOptions = polymorphismOptions;
+        }
+    }
 
     static void CreateBehaviorResolver(JsonTypeInfo typeInfo)
     {
@@ -72,9 +87,22 @@ public static class SceneSerializer
 
                 foreach (var entity in loadedEntities)
                 {
-                    if (!string.IsNullOrEmpty(entity.TexturePath))
+                    // Réhydratation de la texture via chemin relatif
+                    if (entity.Sprite != null && !string.IsNullOrEmpty(entity.Sprite.TexturePath))
                     {
-                        entity.Texture = engine.AssetManager.GetTexture(entity.TexturePath);
+                        // On combine avec le root du projet pour trouver le fichier
+                        string fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, entity.Sprite.TexturePath);
+                        entity.Sprite.Texture = engine.AssetManager.GetTexture(fullPath);
+                        
+                        // Synchronisation spécifique Tilemap: la texture interne de rendu doit être renseignée
+                        if (entity is Tilemap tilemap)
+                        {
+                            tilemap.Texture = entity.Sprite.Texture;
+                            if (tilemap.TileSize <= 0) 
+                            {
+                                tilemap.TileSize = ProjectManager.CurrentProject.TileSize;
+                            }
+                        }
                     }
 
                     if (entity.Behaviors != null)

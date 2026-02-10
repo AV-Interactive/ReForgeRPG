@@ -8,8 +8,8 @@ public static class EditorMath
     public static Vector2 SnapToGrid(Vector2 position)
     {
         return new Vector2(
-            MathF.Floor(position.X / EditorConfig.GridSize) * EditorConfig.GridSize,
-            MathF.Floor(position.Y / EditorConfig.GridSize) * EditorConfig.GridSize
+            MathF.Floor(position.X / EditorConfig.TileSize) * EditorConfig.TileSize,
+            MathF.Floor(position.Y / EditorConfig.TileSize) * EditorConfig.TileSize
         );
     }
 

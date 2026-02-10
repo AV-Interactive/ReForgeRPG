@@ -17,6 +17,7 @@
         Engine _engine;
         bool _running = true;
         int _currentLayer = 0;
+        int _selectedTile = 0;
         
         public enum EditorState {Editing, Playing};
         EditorState _currentState = EditorState.Editing;
@@ -32,6 +33,8 @@
         HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
         EditorSelector _editorSelector = new EditorSelector();
         MenuBarPanel _menuBar = new MenuBarPanel();
+        
+        EditorContext _ctx = new EditorContext();
 
         public EditorApp()
         {
@@ -57,6 +60,13 @@
                 Console.WriteLine($"Aucun projet précédent trouvé ou erreur lors du chargement.");
                 ProjectManager.CreateEmptyTemporaryProject();
             }
+
+            // Synchroniser la taille des tuiles de l'éditeur avec le projet chargé
+            if (ProjectManager.CurrentProject != null && ProjectManager.CurrentProject.TileSize > 0)
+            {
+                EditorConfig.TileSize = ProjectManager.CurrentProject.TileSize;
+            }
+
             EditorConfig.CurrentTool = EditorTool.Drawing;
         }
 
@@ -95,7 +105,7 @@
             float inspectorWidth = Math.Max(windowWidth * 0.20f, 300f);
             
             // Assignation du contexte
-            var ctx = new EditorContext
+            _ctx = new EditorContext
             {
                 State = _currentState,
                 SnapshotEntities = _snapshotEntities,
@@ -108,20 +118,22 @@
                 ContentBrowser = _contentBrowser,
                 SidebarWidth = sidebarWidth, 
                 InspectorWidth = inspectorWidth,
-                MenuBarHeight = ImGui.GetFrameHeightWithSpacing()
+                MenuBarHeight = ImGui.GetFrameHeightWithSpacing(),
+                SelectedTile = _selectedTile
             };
             
             // Affichage des panneaux
-            _menuBar.Draw(_engine, ctx);
-            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, ctx);
-            _contentBrowser.Draw(_engine, ctx);
-            _layerPanel.Draw(ctx);
-            _viewportPanel.Draw(_engine, ctx, this);
+            _menuBar.Draw(_engine, _ctx);
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, _ctx);
+            _contentBrowser.Draw(_engine, _ctx);
+            _layerPanel.Draw(_ctx);
+            _viewportPanel.Draw(_engine, _ctx, this);
             _gizmoHighlighCell.UpdateTimer();
-            _inspectorPanel.Draw(ctx.SelectedEntities.FirstOrDefault(), ctx);
+            _inspectorPanel.Draw(_ctx.SelectedEntities.FirstOrDefault(), _ctx);
 
-            _currentState = ctx.State;
-            _currentLayer = ctx.CurrentLayer;
+            _currentState = _ctx.State;
+            _currentLayer = _ctx.CurrentLayer;
+            _selectedTile = _ctx.SelectedTile;
         }
 
         public void HandleEditorTools(Vector2 viewportPos)
@@ -135,7 +147,7 @@
                 // Logique de dessin
                 if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
                 {
-                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
+                    _mapPainter.Update(_engine, _ctx, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
                 }
             } 
             

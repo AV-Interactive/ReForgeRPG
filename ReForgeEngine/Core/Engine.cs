@@ -51,7 +51,28 @@ public class Engine
     public void Render()
     {
         Raylib.ClearBackground(Color.Black);
-        CurrentScene.Draw();
+        
+        var camEntity = CurrentScene.GetActiveCameraEntity();
+
+        if (camEntity != null)
+        {
+            Camera2D worldCamera = new Camera2D
+            {
+                Target = camEntity.Position,
+                Offset = new System.Numerics.Vector2(_width / 2, _height / 2),
+                Zoom = 1.0f,
+                Rotation = 0.0f,
+            };
+            
+            Raylib.BeginMode2D(worldCamera);
+            CurrentScene.Draw();
+            Raylib.EndMode2D();
+        }
+        else
+        {
+            CurrentScene.Draw();
+        }
+        
     }
 
     public void CleanUp()

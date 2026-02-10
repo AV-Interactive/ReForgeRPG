@@ -46,7 +46,7 @@ public class ViewportPanel
                 if (ctx.State == EditorApp.EditorState.Editing)
                 {
                     ctx.MapPainter.DrawGrid(_viewportRes);
-                    ctx.MapPainter.DrawPreview(engine);
+                    ctx.MapPainter.DrawPreview(engine, ctx);
                     
                     foreach (var entity in ctx.SelectedEntities)
                     {
@@ -73,8 +73,8 @@ public class ViewportPanel
                         Rectangle rect = new Rectangle(
                             entity.Position.X, 
                             entity.Position.Y, 
-                            EditorConfig.GridSize, 
-                            EditorConfig.GridSize
+                            EditorConfig.TileSize, 
+                            EditorConfig.TileSize
                         );
                 
                         Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.1f));
@@ -82,7 +82,7 @@ public class ViewportPanel
                     }
                 }
         
-                ctx.MapPainter.DrawPreview(engine);
+                ctx.MapPainter.DrawPreview(engine, ctx);
 
                 foreach (var entity in ctx.SelectedEntities)
                 {

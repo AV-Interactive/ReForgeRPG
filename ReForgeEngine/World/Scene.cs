@@ -1,5 +1,6 @@
 using Raylib_cs;
 using ReForge.Engine.Physics;
+using ReForge.Engine.World.Behaviors;
 
 namespace ReForge.Engine.World;
 
@@ -47,6 +48,11 @@ public class Scene
             _entities.Remove(entity);
         }
         _entitiesToRemove.Clear();
+    }
+
+    public Entity? GetActiveCameraEntity()
+    {
+        return _entities.FirstOrDefault(e => e.GetBehavior<CameraFollow>() != null);
     }
     
     public List<Entity> Entities => _entities;

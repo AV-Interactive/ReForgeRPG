@@ -17,12 +17,14 @@ public class Entity
     public string Name { get; set; } = "Nouvel element";
     public int ZIndex { get; set; } = 0;
 
+    [JsonIgnore]
     public Vector2 Position 
     {
         get => GetBehavior<TransformComponent>().Position;
         set => GetBehavior<TransformComponent>().Position = value;
     }
 
+    [JsonIgnore]
     public string TexturePath
     {
         get => GetBehavior<SpriteComponent>()?.TexturePath ?? "";
@@ -96,7 +98,22 @@ public class Entity
             AddBehavior(trigger);
         }
 
-        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) return;
+        // Empêcher les doublons pour les composants essentiels
+        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) 
+        {
+            // On met à jour la position si nécessaire ou on ignore simplement
+            var existing = this.GetBehavior<TransformComponent>();
+            existing.Position = ((TransformComponent)behavior).Position;
+            return;
+        }
+
+        if (behavior is SpriteComponent && this.GetBehavior<SpriteComponent>() != null)
+        {
+            var existing = this.GetBehavior<SpriteComponent>();
+            existing.TexturePath = ((SpriteComponent)behavior).TexturePath;
+            existing.Texture = ((SpriteComponent)behavior).Texture;
+            return;
+        }
         
         _behaviors.Add(behavior);
         behavior.Initialize();
@@ -129,6 +146,7 @@ public class Entity
     public Entity Clone()
     {
         var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
+        clone.Id = Guid.NewGuid(); // On s'assure d'avoir un nouvel ID
         
         foreach (var tag in _tags) clone.AddTag(tag);
 

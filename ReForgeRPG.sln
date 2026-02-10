@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReforgeEditor", "ReforgeEdi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReForge.Engine.Tests", "ReForge.Engine.Tests\ReForge.Engine.Tests.csproj", "{BFD800D2-BAD3-4B33-82F9-590EC4C2EE71}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoKarmaRPG", "EchoKarmaRPG\EchoKarmaRPG.csproj", "{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,18 @@ Global
 		{BFD800D2-BAD3-4B33-82F9-590EC4C2EE71}.Release|x64.Build.0 = Release|Any CPU
 		{BFD800D2-BAD3-4B33-82F9-590EC4C2EE71}.Release|x86.ActiveCfg = Release|Any CPU
 		{BFD800D2-BAD3-4B33-82F9-590EC4C2EE71}.Release|x86.Build.0 = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|x64.Build.0 = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Debug|x86.Build.0 = Debug|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|x64.ActiveCfg = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|x64.Build.0 = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|x86.ActiveCfg = Release|Any CPU
+		{E68ED5F9-6303-48C0-9E8E-D6753AD9AD07}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

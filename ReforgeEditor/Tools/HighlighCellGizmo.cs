@@ -21,8 +21,8 @@ public class HighlighCellGizmo
         Rectangle highlight = new Rectangle(
             selectedEntity.Position.X,
             selectedEntity.Position.Y,
-            EditorConfig.GridSize,
-            EditorConfig.GridSize
+            EditorConfig.TileSize,
+            EditorConfig.TileSize
         );
         
         if (forceHover)
