@@ -11,8 +11,10 @@ public class MenuBarPanel
 {
     bool _showSavePopup = false;
     bool _showSaveScenePopup = false;
+    bool _showProjectSettingsPopup = false;
     string _projectNameBuffer = "";
     string _sceneNameBuffer = "";
+    int _tileSizeBuffer = 32;
     Engine _engine;
     
     public void Draw(Engine engine, EditorContext ctx)
@@ -60,6 +62,19 @@ public class MenuBarPanel
                     }
                 }
                 
+                ImGui.EndMenu();
+            }
+
+            if (ImGui.BeginMenu("Projet"))
+            {
+                if (ImGui.MenuItem("Paramètres du projet"))
+                {
+                    if (ProjectManager.CurrentProject != null)
+                    {
+                        _tileSizeBuffer = ProjectManager.CurrentProject.TileSize;
+                        _showProjectSettingsPopup = true;
+                    }
+                }
                 ImGui.EndMenu();
             }
                 
@@ -136,8 +151,49 @@ public class MenuBarPanel
             ImGui.OpenPopup("Enregistrer la Scene");
         }
         
+        if (_showProjectSettingsPopup) 
+        {
+            ImGui.OpenPopup("Paramètres du Projet");
+        }
+        
         DrawSavePopup();
         DrawSaveScenePopup();
+        DrawProjectSettingsPopup();
+    }
+    
+    void DrawProjectSettingsPopup()
+    {
+        if (ImGui.BeginPopupModal("Paramètres du Projet", ref _showProjectSettingsPopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Taille de la grille (px):");
+            if (ImGui.InputInt("##_tileSizeBuffer", ref _tileSizeBuffer))
+            {
+                if (_tileSizeBuffer < 1) _tileSizeBuffer = 1;
+                if (_tileSizeBuffer > 256) _tileSizeBuffer = 256;
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.Button("Appliquer"))
+            {
+                if (ProjectManager.CurrentProject != null)
+                {
+                    ProjectManager.CurrentProject.TileSize = _tileSizeBuffer;
+                    EditorConfig.TileSize = _tileSizeBuffer;
+                }
+                _showProjectSettingsPopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Annuler")) 
+            {
+                _showProjectSettingsPopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
     }
     
     void DrawSavePopup()
