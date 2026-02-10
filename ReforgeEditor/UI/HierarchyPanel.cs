@@ -23,7 +23,26 @@ public class HierarchyPanel
         if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
             WindowPosition = ImGui.GetWindowPos();
+
+            if (ImGui.BeginPopupContextWindow("HierarchyContextMenu"))
+            {
+                if (ImGui.MenuItem("Créer une entité vide"))
+                {
+                    var emptyEntity = new Entity();
+                    emptyEntity.Name = "Nouvelle entité";
+                    emptyEntity.ZIndex = ctx.CurrentLayer;
+                    // On place l'entité au centre de la vue ou à (0,0) par défaut
+                    // Pour l'instant on garde le comportement par défaut mais on s'assure qu'elle est ajoutée
+                    ctx.CurrentScene.AddEntity(emptyEntity);
+                    ctx.SelectedEntities.Clear();
+                    ctx.SelectedEntities.Add(emptyEntity);
+                }
+                ImGui.EndPopup();
+            }
+
             int i = 0;
+            Entity? entityToDelete = null;
+
             foreach (Entity entity in entities)
             {
                 bool isSelected = ctx.SelectedEntities.Contains(entity);
@@ -41,7 +60,26 @@ public class HierarchyPanel
                         ctx.SelectedEntities.Add(entity);
                     }
                 }
+
+                if (ImGui.BeginPopupContextItem($"EntityContextMenu##{i}"))
+                {
+                    if (ImGui.MenuItem("Supprimer"))
+                    {
+                        entityToDelete = entity;
+                    }
+                    ImGui.EndPopup();
+                }
+
                 i++;
+            }
+
+            if (entityToDelete != null)
+            {
+                ctx.CurrentScene.DestroyEntity(entityToDelete);
+                if (ctx.SelectedEntities.Contains(entityToDelete))
+                {
+                    ctx.SelectedEntities.Remove(entityToDelete);
+                }
             }
         }
         ImGui.End();

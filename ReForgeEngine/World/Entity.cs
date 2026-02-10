@@ -71,7 +71,8 @@ public class Entity
     // Public Methods
     public virtual void Update(float deltaTime)
     {
-        foreach (Behavior behavior in _behaviors)
+        // Exécuter les behaviors selon leur ordre d'update
+        foreach (Behavior behavior in _behaviors.OrderBy(b => b.UpdateOrder))
         {
             behavior.Update(deltaTime);
         }
@@ -143,10 +144,11 @@ public class Entity
     public void RemoveTag(string tag) => _tags.Remove(tag);
 
     // Lifecycle
-    public Entity Clone()
+    public virtual Entity Clone()
     {
         var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
         clone.Id = Guid.NewGuid(); // On s'assure d'avoir un nouvel ID
+        clone.ZIndex = this.ZIndex;
         
         foreach (var tag in _tags) clone.AddTag(tag);
 

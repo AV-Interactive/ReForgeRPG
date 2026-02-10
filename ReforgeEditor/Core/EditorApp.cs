@@ -119,6 +119,7 @@
                 SidebarWidth = sidebarWidth, 
                 InspectorWidth = inspectorWidth,
                 MenuBarHeight = ImGui.GetFrameHeightWithSpacing(),
+                CurrentScene = _engine.CurrentScene,
                 SelectedTile = _selectedTile
             };
             
@@ -142,8 +143,12 @@
             Vector2 relativeMousePos = mousePos - viewportPos;
             Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
 
+            bool isHovered = ImGui.IsWindowHovered();
+
             if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
+                if (!isHovered) return;
+                
                 // Logique de dessin
                 if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
                 {
@@ -153,9 +158,11 @@
             
             else if (EditorConfig.CurrentTool == EditorTool.Selection)
             {
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                if (isHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
+                    // Pour la sélection, on préfère utiliser la position réelle de la souris dans le monde 
+                    // plutôt qu'une position snappée, pour permettre de cliquer n'importe où sur un grand sprite.
+                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, relativeMousePos, _currentLayer);
 
                     if (ImGui.GetIO().KeyCtrl)
                     {
@@ -172,24 +179,37 @@
                     }
                 }
 
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                if (isHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
                 {
                     ImGui.OpenPopup("ViewportContextMenu");
                 }
                 
                 if (ImGui.BeginPopup("ViewportContextMenu"))
                 {
-                    if (ImGui.MenuItem("Créer une entité"))
+                    if (ImGui.MenuItem("Créer une entité vide"))
                     {
                         var emptyEntity = new Entity();
                         emptyEntity.Name = "Nouvelle entité";
                         emptyEntity.Position = snappedPos;
-                        emptyEntity.ZIndex = 3;
+                        emptyEntity.ZIndex = _currentLayer;
                        
                         _engine.CurrentScene.AddEntity(emptyEntity);
                         
                         _selectedEntities.Clear();
                         _selectedEntities.Add(emptyEntity);
+                    }
+
+                    if (_selectedEntities.Count > 0)
+                    {
+                        ImGui.Separator();
+                        if (ImGui.MenuItem("Supprimer la sélection"))
+                        {
+                            foreach (var entity in _selectedEntities)
+                            {
+                                _engine.CurrentScene.DestroyEntity(entity);
+                            }
+                            _selectedEntities.Clear();
+                        }
                     }
                     ImGui.EndPopup();
                 }

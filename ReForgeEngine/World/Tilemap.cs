@@ -54,6 +54,51 @@ public class Tilemap: Entity
         this.Texture = texture;
     }
     
+    public override Entity Clone()
+    {
+        var clone = new Tilemap(this.Position, this.TileSize, this.Texture, this.TexturePath)
+        {
+            Name = this.Name,
+            ZIndex = this.ZIndex
+        };
+        
+        // Copie profonde des layers
+        foreach (var layer in this.Layers)
+        {
+            var newLayer = new TileLayer();
+            newLayer.IsCollidable = layer.IsCollidable;
+            newLayer.IsForeground = layer.IsForeground;
+            if (layer.Data != null)
+            {
+                int h = layer.Data.Length;
+                int[][] newData = new int[h][];
+                for (int i = 0; i < h; i++)
+                {
+                    int w = layer.Data[i].Length;
+                    newData[i] = new int[w];
+                    Array.Copy(layer.Data[i], newData[i], w);
+                }
+                newLayer.Data = newData;
+            }
+            clone.Layers.Add(newLayer);
+        }
+        
+        // Tags
+        foreach (var tag in this.Tags)
+        {
+            clone.AddTag(tag);
+        }
+        
+        // Comportements
+        foreach (var behavior in this.Behaviors)
+        {
+            var b = behavior.Clone();
+            clone.AddBehavior(b);
+        }
+        
+        return clone;
+    }
+    
     public List<TileLayer> GetLayers() => Layers;
     public void AddLayer(TileLayer layer) => Layers.Add(layer);
     

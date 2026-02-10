@@ -20,5 +20,6 @@ public class EditorContext
     public List<Entity> SnapshotEntities { get; set; } = new List<Entity>();
     public List<Entity> SelectedEntities { get; set; } = new List<Entity>();
     public EditorSelector EditorSelector { get; set; }
+    public ReForge.Engine.World.Scene CurrentScene { get; set; }
     public int SelectedTile { get; set; }
 }

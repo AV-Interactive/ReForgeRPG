@@ -41,11 +41,32 @@ public class ViewportPanel
             
             Raylib.BeginMode2D(_worldCamera);
             
+                engine.ExternalCameraActive = true;
                 engine.Render();
+                engine.ExternalCameraActive = false;
 
                 if (ctx.State == EditorApp.EditorState.Editing)
                 {
                     ctx.MapPainter.DrawGrid(_viewportRes);
+                    
+                    // On dessine aussi les entités vides en mode caméra si on est en train d'éditer
+                    foreach (var entity in engine.CurrentScene.Entities)
+                    {
+                        var sprite = entity.Sprite;
+                        if (sprite == null || sprite.Texture.Id == 0)
+                        {
+                            Rectangle rect = new Rectangle(
+                                entity.Position.X, 
+                                entity.Position.Y, 
+                                EditorConfig.TileSize, 
+                                EditorConfig.TileSize
+                            );
+                    
+                            Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.4f));
+                            Raylib.DrawRectangleLinesEx(rect, 1, Raylib.Fade(Color.SkyBlue, 0.9f));
+                        }
+                    }
+
                     ctx.MapPainter.DrawPreview(engine, ctx);
                     
                     foreach (var entity in ctx.SelectedEntities)
@@ -59,7 +80,9 @@ public class ViewportPanel
         }
         else
         {
+            engine.ExternalCameraActive = ctx.State == EditorApp.EditorState.Editing;
             engine.Render();
+            engine.ExternalCameraActive = false;
 
             if (ctx.State == EditorApp.EditorState.Editing)
             {
@@ -77,8 +100,8 @@ public class ViewportPanel
                             EditorConfig.TileSize
                         );
                 
-                        Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.1f));
-                        Raylib.DrawRectangleLinesEx(rect, 1, Raylib.Fade(Color.SkyBlue, 0.8f));
+                        Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.4f));
+                        Raylib.DrawRectangleLinesEx(rect, 1, Raylib.Fade(Color.SkyBlue, 0.9f));
                     }
                 }
         

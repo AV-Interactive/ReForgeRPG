@@ -53,8 +53,8 @@ public class Engine
         Raylib.ClearBackground(Color.Black);
         
         var camEntity = CurrentScene.GetActiveCameraEntity();
-
-        if (camEntity != null)
+        
+        if (camEntity != null && !ExternalCameraActive)
         {
             Camera2D worldCamera = new Camera2D
             {
@@ -86,6 +86,9 @@ public class Engine
     public Texture2D LoadTexture(string path) => AssetManager.GetTexture(path);
     
     public Scene CurrentScene { get; set; } = new Scene();
+    
+    // When true, an external system (e.g., the Editor) manages the world camera.
+    public bool ExternalCameraActive { get; set; } = false;
     
     public void DestroyEntity(Entity entity) => CurrentScene.DestroyEntity(entity);
 }

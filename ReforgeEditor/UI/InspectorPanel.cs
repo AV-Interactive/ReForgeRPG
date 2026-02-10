@@ -60,6 +60,13 @@ public class InspectorPanel
     void DrawSingleEntityEditor(EditorContext ctx)
     {
         var selectedEntity = ctx.SelectedEntities[0];
+        
+        string name = selectedEntity.Name;
+        if (ImGui.InputText("Nom", ref name, 64))
+        {
+            selectedEntity.Name = name;
+        }
+
         Vector2 pos = selectedEntity.Position;
         if (ImGui.DragFloat2("Position", ref pos)) selectedEntity.Position = pos;
         
@@ -109,7 +116,7 @@ public class InspectorPanel
             
             if (open)
             {
-                DrawBehaviorEditor(behavior);
+                DrawBehaviorEditor(behavior, ctx);
                 ImGui.TreePop();
             }
             
@@ -131,8 +138,27 @@ public class InspectorPanel
         DrawBehaviorSelector(ctx.SelectedEntities);
     }
 
-    void DrawBehaviorEditor(Behavior behavior)
+    void DrawBehaviorEditor(Behavior behavior, EditorContext ctx)
     {
+        // Bouton spécial pour WorldBounds
+        if (behavior is WorldBounds wb)
+        {
+            if (ImGui.Button("Ajuster à la Tilemap"))
+            {
+                var tilemap = ctx.CurrentScene.Entities.OfType<Tilemap>().FirstOrDefault();
+                if (tilemap != null && tilemap.Layers.Count > 0)
+                {
+                    var layer = tilemap.Layers[0];
+                    float mapWidth = layer.Data[0].Length * tilemap.TileSize;
+                    float mapHeight = layer.Data.Length * tilemap.TileSize;
+
+                    wb.MinBounds = tilemap.Position;
+                    wb.MaxBounds = tilemap.Position + new Vector2(mapWidth, mapHeight);
+                }
+            }
+            ImGui.Separator();
+        }
+
         // PROPRIETES
         var properties = behavior.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
         foreach (var prop in properties)
