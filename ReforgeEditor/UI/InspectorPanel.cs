@@ -234,16 +234,47 @@ public class InspectorPanel
             else if (prop.PropertyType == typeof(List<ActionCommand>))
             {
                 var list = (List<ActionCommand>)value!;
-                if(ImGui.TreeNode($"Commandes de {prop.Name} ({list.Count})"))
+                if(ImGui.TreeNode($"Commandes de {prop.Name} ({list.Count})##{prop.Name}"))
                 {
-                    if (ImGui.Button($"+ Ajouter"))
+                    if (ImGui.Button($"+ Ajouter##{prop.Name}"))
                     {
                         list.Add(new ActionCommand());
                     }
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        DrawActionCommandEditor(list[i], list, i);
+                        if (ImGui.TreeNode($"Commande {i} : {list[i].Verb}##{prop.Name}_{i}"))
+                        {
+                            DrawActionCommandEditor(list[i], list, i);
+                            if (ImGui.Button($"Supprimer##{prop.Name}_{i}"))
+                            {
+                                list.RemoveAt(i);
+                                ImGui.TreePop();
+                                break;
+                            }
+                            ImGui.TreePop();
+                        }
+                    }
+                    ImGui.TreePop();
+                }
+            }
+            else if (prop.PropertyType == typeof(List<ActionCondition>))
+            {
+                var list = (List<ActionCondition>)value!;
+                if (ImGui.TreeNode($"Conditions de {prop.Name} ({list.Count})##{prop.Name}"))
+                {
+                    if (ImGui.Button($"+ Ajouter Condition##{prop.Name}"))
+                    {
+                        list.Add(new ActionCondition());
+                    }
+
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        if (ImGui.TreeNode($"Condition {i} : {list[i].Key}##{prop.Name}_{i}"))
+                        {
+                            DrawActionConditionEditor(list[i], list, i);
+                            ImGui.TreePop();
+                        }
                     }
                     ImGui.TreePop();
                 }
@@ -317,11 +348,79 @@ public class InspectorPanel
                     actionCommand.Destination = destination;
                 }
                 break;
+            case ActionVerb.SetSwitch:
+            case ActionVerb.SetVariable:
+            case ActionVerb.AddValueVariable:
+            case ActionVerb.SubtractValueVariable:
+                string key = actionCommand.Key;
+                if (ImGui.InputText($"Clé (Variable/Switch)##{i}", ref key, 64))
+                {
+                    actionCommand.Key = key;
+                }
+                float val = actionCommand.Value;
+                if (ImGui.DragFloat($"Valeur##{i}", ref val))
+                {
+                    actionCommand.Value = val;
+                }
+                break;
             case ActionVerb.Destroy:
                 break;
             case ActionVerb.ToggleActive:
                 break;
         }
+    }
+
+    void DrawActionConditionEditor(ActionCondition condition, List<ActionCondition> list, int i)
+    {
+        ImGui.PushID($"Condition_{i}");
+        
+        string[] typeNames = Enum.GetNames(typeof(ActionConditionType));
+        int typeIndex = (int)condition.Type;
+        if (ImGui.Combo("Type", ref typeIndex, typeNames, typeNames.Length))
+        {
+            condition.Type = (ActionConditionType)typeIndex;
+        }
+
+        string key = condition.Key;
+        if (ImGui.InputText("Clé", ref key, 64))
+        {
+            condition.Key = key;
+        }
+
+        if (condition.Type == ActionConditionType.Variable)
+        {
+            string[] opNames = Enum.GetNames(typeof(ConditionOperator));
+            int opIndex = (int)condition.Operator;
+            if (ImGui.Combo("Opérateur", ref opIndex, opNames, opNames.Length))
+            {
+                condition.Operator = (ConditionOperator)opIndex;
+            }
+        }
+
+        float val = condition.Value;
+        if (condition.Type == ActionConditionType.Switch)
+        {
+            bool bVal = val != 0;
+            if (ImGui.Checkbox("Valeur Cible", ref bVal))
+            {
+                condition.Value = bVal ? 1 : 0;
+            }
+        }
+        else
+        {
+            if (ImGui.DragFloat("Valeur Cible", ref val))
+            {
+                condition.Value = val;
+            }
+        }
+
+        if (ImGui.Button("Supprimer Condition"))
+        {
+            list.RemoveAt(i);
+        }
+
+        ImGui.PopID();
+        ImGui.Separator();
     }
 
     void RefreshBehaviorList()

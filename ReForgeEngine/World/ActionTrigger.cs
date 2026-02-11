@@ -1,9 +1,12 @@
+using ReForge.Engin.Core;
+
 namespace ReForge.Engine.World;
 using ReForge.Engine.Core;
 
 [HiddenSelectableBehavior] 
 public class ActionTrigger: Behavior
 {
+    public List<ActionCondition> Conditions { get; set; } = new();
     public List<ActionCommand> OnEnterActions { get; set; } = new();
     public List<ActionCommand> OnExitActions { get; set; } = new();
     
@@ -17,13 +20,16 @@ public class ActionTrigger: Behavior
         return new ActionTrigger
         {
             OnEnterActions = this.OnEnterActions,
-            OnExitActions = this.OnExitActions
+            OnExitActions = this.OnExitActions,
+            Conditions = this.Conditions
         };
     }
 
     public override void OnReceivedEvent(string eventName, object? data = null)
     {
         Entity? entity = data as Entity;
+
+        if(!CheckConditions(entity)) return;
         
         if (eventName == "OnCollisionEnter")
         {
@@ -71,7 +77,35 @@ public class ActionTrigger: Behavior
                 case ActionVerb.Teleport:
                     target.Position = command.Destination;
                     break;
+                case ActionVerb.SetSwitch:
+                    ProjectManager.SetSwitch(command.Key, command.Value != 0);
+                    break;
+                case ActionVerb.SetVariable:
+                    ProjectManager.SetVariable(command.Key, command.Value);
+                    break;
+                case ActionVerb.AddValueVariable:
+                    float currentAddValue = ProjectManager.GetVariable(command.Key);
+                    ProjectManager.SetVariable(command.Key, currentAddValue + command.Value);
+                    break;
+                case ActionVerb.SubtractValueVariable:
+                    float currentSubValue = ProjectManager.GetVariable(command.Key);
+                    ProjectManager.SetVariable(command.Key, currentSubValue - command.Value);
+                    break;
             }
         }
+    }
+    
+    bool CheckConditions(Entity entity)
+    {
+        if(Conditions.Count == 0) return true;
+
+        foreach (var cdtn in Conditions)
+        {
+            if (cdtn.Evaluate() == false)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }
