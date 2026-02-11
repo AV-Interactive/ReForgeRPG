@@ -24,6 +24,9 @@
         public List<Entity> _snapshotEntities = new List<Entity>();
         public List<Entity> _selectedEntities = new List<Entity>();
         
+        // Position en grille capturée à l'ouverture du menu contextuel
+        Vector2? _contextMenuSpawnPos = null;
+        
         MapPainter _mapPainter = new MapPainter();
         ViewportPanel _viewportPanel = new ViewportPanel();
         ContentBrowser _contentBrowser = new ContentBrowser();
@@ -191,6 +194,8 @@
                     // On n'ouvre le menu que si on n'a presque pas bougé (évite le conflit avec le pan)
                     if (ImGui.GetMouseDragDelta(ImGuiMouseButton.Right).Length() < 5f)
                     {
+                        // Mémorise la position au moment exact de l'ouverture du menu
+                        _contextMenuSpawnPos = EditorMath.SnapToGrid(worldMousePos);
                         ImGui.OpenPopup("ViewportContextMenu");
                     }
                 }
@@ -201,13 +206,17 @@
                     {
                         var emptyEntity = new Entity();
                         emptyEntity.Name = "Nouvelle entité";
-                        emptyEntity.Position = snappedPos;
+                        // Utilise la position mémorisée lors de l'ouverture du menu, fallback sur la position actuelle si nécessaire
+                        emptyEntity.Position = _contextMenuSpawnPos ?? snappedPos;
                         emptyEntity.ZIndex = _currentLayer;
                        
                         _engine.CurrentScene.AddEntity(emptyEntity);
                         
                         _selectedEntities.Clear();
                         _selectedEntities.Add(emptyEntity);
+                        
+                        // Réinitialise après utilisation
+                        _contextMenuSpawnPos = null;
                     }
 
                     if (_selectedEntities.Count > 0)

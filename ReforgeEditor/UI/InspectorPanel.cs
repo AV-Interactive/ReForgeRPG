@@ -205,6 +205,9 @@ public class InspectorPanel
             if (!prop.CanWrite || !prop.CanRead) continue;
 
             var value = prop.GetValue(behavior);
+            
+            // Isolation d'ID par propriété pour éviter les replis involontaires (ex: BoxCollider)
+            ImGui.PushID(prop.Name);
         
             if (prop.PropertyType == typeof(float))
             {
@@ -234,6 +237,7 @@ public class InspectorPanel
             else if (prop.PropertyType == typeof(List<ActionCommand>))
             {
                 var list = (List<ActionCommand>)value!;
+                ImGui.PushID($"{prop.Name}");
                 if(ImGui.TreeNode($"Commandes de {prop.Name} ({list.Count})##{prop.Name}"))
                 {
                     if (ImGui.Button($"+ Ajouter##{prop.Name}"))
@@ -243,24 +247,30 @@ public class InspectorPanel
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (ImGui.TreeNode($"Commande {i} : {list[i].Verb}##{prop.Name}_{i}"))
+                        var stableId = list[i].Id;
+                        ImGui.PushID(stableId);
+                        if (ImGui.TreeNode($"Commande {i} : {list[i].Verb}##TreeNode_{stableId}"))
                         {
                             DrawActionCommandEditor(list[i], list, i);
-                            if (ImGui.Button($"Supprimer##{prop.Name}_{i}"))
+                            if (ImGui.Button($"Supprimer##Delete_{stableId}"))
                             {
                                 list.RemoveAt(i);
                                 ImGui.TreePop();
+                                ImGui.PopID();
                                 break;
                             }
                             ImGui.TreePop();
                         }
+                        ImGui.PopID();
                     }
                     ImGui.TreePop();
                 }
+                ImGui.PopID();
             }
             else if (prop.PropertyType == typeof(List<ActionCondition>))
             {
                 var list = (List<ActionCondition>)value!;
+                ImGui.PushID($"{prop.Name}");
                 if (ImGui.TreeNode($"Conditions de {prop.Name} ({list.Count})##{prop.Name}"))
                 {
                     if (ImGui.Button($"+ Ajouter Condition##{prop.Name}"))
@@ -270,16 +280,21 @@ public class InspectorPanel
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (ImGui.TreeNode($"Condition {i} : {list[i].Key}##{prop.Name}_{i}"))
+                        var stableId = list[i].Id;
+                        ImGui.PushID(stableId);
+                        if (ImGui.TreeNode($"Condition {i} : {list[i].Key}##TreeNode_{stableId}"))
                         {
                             DrawActionConditionEditor(list[i], list, i);
                             ImGui.TreePop();
                         }
+                        ImGui.PopID();
                     }
                     ImGui.TreePop();
                 }
+                ImGui.PopID();
             }
             
+            ImGui.PopID();
         }
         
         // Variables
@@ -314,16 +329,17 @@ public class InspectorPanel
 
     void DrawActionCommandEditor(ActionCommand actionCommand, List<ActionCommand> list, int i)
     {
+        var stableId = actionCommand.Id;
+        ImGui.PushID(stableId);
         string[] verbNames = Enum.GetNames(typeof(ActionVerb));
         int currentVerbIndex = (int)actionCommand.Verb;
-
-        if (ImGui.Combo("Verbe", ref currentVerbIndex, verbNames, verbNames.Length))
+        if (ImGui.Combo($"Verbe##ComboVerb_{stableId}", ref currentVerbIndex, verbNames, verbNames.Length))
         {
             actionCommand.Verb = (ActionVerb)currentVerbIndex;
         }
         
         bool targetSelf = actionCommand.TargetSelf;
-        if (ImGui.Checkbox($"Cibler soi-même ##{i}", ref targetSelf))
+        if (ImGui.Checkbox($"Cibler soi-même ##{stableId}", ref targetSelf))
         {
             actionCommand.TargetSelf = targetSelf;
         }
@@ -333,7 +349,7 @@ public class InspectorPanel
             ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Ciblage Global par Tag");
             
             string tag = actionCommand.TargetTag;
-            if (ImGui.InputText($"Tag cible ##{i}", ref tag, 64))
+            if (ImGui.InputText($"Tag cible ##{stableId}", ref tag, 64))
             {
                 actionCommand.TargetTag = tag;
             }
@@ -343,7 +359,7 @@ public class InspectorPanel
         {
             case ActionVerb.Teleport:
                 Vector2 destination = actionCommand.Destination;
-                if(ImGui.DragFloat2($"Destination##{i}", ref destination))
+                if(ImGui.DragFloat2($"Destination##{stableId}", ref destination))
                 {
                     actionCommand.Destination = destination;
                 }
@@ -353,12 +369,12 @@ public class InspectorPanel
             case ActionVerb.AddValueVariable:
             case ActionVerb.SubtractValueVariable:
                 string key = actionCommand.Key;
-                if (ImGui.InputText($"Clé (Variable/Switch)##{i}", ref key, 64))
+                if (ImGui.InputText($"Clé (Variable/Switch)##{stableId}", ref key, 64))
                 {
                     actionCommand.Key = key;
                 }
                 float val = actionCommand.Value;
-                if (ImGui.DragFloat($"Valeur##{i}", ref val))
+                if (ImGui.DragFloat($"Valeur##{stableId}", ref val))
                 {
                     actionCommand.Value = val;
                 }
@@ -368,21 +384,23 @@ public class InspectorPanel
             case ActionVerb.ToggleActive:
                 break;
         }
+        ImGui.PopID();
     }
 
     void DrawActionConditionEditor(ActionCondition condition, List<ActionCondition> list, int i)
     {
-        ImGui.PushID($"Condition_{i}");
+        var stableId = condition.Id;
+        ImGui.PushID($"Condition_{stableId}");
         
         string[] typeNames = Enum.GetNames(typeof(ActionConditionType));
         int typeIndex = (int)condition.Type;
-        if (ImGui.Combo("Type", ref typeIndex, typeNames, typeNames.Length))
+        if (ImGui.Combo($"Type##ComboType_{stableId}", ref typeIndex, typeNames, typeNames.Length))
         {
             condition.Type = (ActionConditionType)typeIndex;
         }
 
         string key = condition.Key;
-        if (ImGui.InputText("Clé", ref key, 64))
+        if (ImGui.InputText($"Clé##Input_{stableId}", ref key, 64))
         {
             condition.Key = key;
         }
@@ -391,7 +409,7 @@ public class InspectorPanel
         {
             string[] opNames = Enum.GetNames(typeof(ConditionOperator));
             int opIndex = (int)condition.Operator;
-            if (ImGui.Combo("Opérateur", ref opIndex, opNames, opNames.Length))
+            if (ImGui.Combo($"Opérateur##ComboOp_{stableId}", ref opIndex, opNames, opNames.Length))
             {
                 condition.Operator = (ConditionOperator)opIndex;
             }
@@ -401,20 +419,20 @@ public class InspectorPanel
         if (condition.Type == ActionConditionType.Switch)
         {
             bool bVal = val != 0;
-            if (ImGui.Checkbox("Valeur Cible", ref bVal))
+            if (ImGui.Checkbox($"Valeur Cible##Check_{stableId}", ref bVal))
             {
                 condition.Value = bVal ? 1 : 0;
             }
         }
         else
         {
-            if (ImGui.DragFloat("Valeur Cible", ref val))
+            if (ImGui.DragFloat($"Valeur Cible##Drag_{stableId}", ref val))
             {
                 condition.Value = val;
             }
         }
 
-        if (ImGui.Button("Supprimer Condition"))
+        if (ImGui.Button($"Supprimer Condition##Delete_{stableId}"))
         {
             list.RemoveAt(i);
         }

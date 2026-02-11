@@ -1,3 +1,4 @@
+using System;
 using ReForge.Engin.Core;
 
 namespace ReForge.Engine.World;
@@ -20,6 +21,9 @@ public enum ConditionOperator
 
 public class ActionCondition
 {
+    // ID stable pour l'UI (préserve l'état des TreeNodes indépendamment de l'index)
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
     public string Key { get; set; } = "";
     public ActionConditionType Type { get; set; }
     public ConditionOperator Operator { get; set; }

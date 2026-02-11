@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Numerics;
 
@@ -25,6 +26,9 @@ public enum ActionVerb
 
 public class ActionCommand
 {
+    // ID stable pour l'UI (préserve l'état des TreeNodes indépendamment de l'index)
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
     public ActionVerb Verb { get; set; }
     public string TargetTag { get; set; } = "";
     public string Key { get; set; } = "";
