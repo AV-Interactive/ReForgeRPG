@@ -12,6 +12,7 @@ public static class ProjectManager
     public static Scene? CurrentScene { get; set; }
     public static string ProjectRootPath { get; private set; }
     public static bool IsSaved { get; set; } = false;
+    public static GameState GameState { get; private set; } = new();
 
     public static bool LoadProject(string filePath)
     {
@@ -34,6 +35,13 @@ public static class ProjectManager
             Console.WriteLine($"Erreur lors du chargement du projet : {e.Message}");
         }
         return false;
+    }
+
+    public static void SetGameState(GameState newState)
+    {
+        if(newState == null) return;
+        
+        GameState = newState;
     }
     
     public static void SaveLastProjectPath()
@@ -142,5 +150,29 @@ public static class ProjectManager
         SceneSerializer.Save(CurrentScene, fullPath);
         
         SaveProject();
+    }
+
+    
+    // Event Management
+    public static bool GetSwitch(string switchName)
+    {
+        GameState.Switches.TryGetValue(switchName, out bool value);
+        return value;
+    }
+    
+    public static void SetSwitch(string switchName, bool value)
+    {
+        GameState.Switches[switchName] = value;
+    }
+
+    public static float GetVariable(string variableName)
+    {
+        GameState.Variables.TryGetValue(variableName, out float value);
+        return value;
+    }
+    
+    public static void SetVariable(string variableName, float value)
+    {
+        GameState.Variables[variableName] = value;
     }
 }

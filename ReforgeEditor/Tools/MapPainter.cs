@@ -118,64 +118,90 @@ public class MapPainter
             return;
         }
 
-        var tilemap = engine.CurrentScene.Entities
-            .OfType<Tilemap>()
+        // On privilégie une ChunkedTilemap si présente à ce layer
+        var chunked = engine.CurrentScene.Entities
+            .OfType<ChunkedTilemap>()
             .FirstOrDefault(t => t.ZIndex == layer);
 
-        if (tilemap == null)
+        if (chunked == null)
         {
-            string fullPath = selectedAsset;
-            if (!Path.IsPathRooted(selectedAsset))
+            // S'il y a déjà une Tilemap dense sur ce layer, on continue à l'utiliser pour compat.
+            var tilemap = engine.CurrentScene.Entities
+                .OfType<Tilemap>()
+                .FirstOrDefault(t => t.ZIndex == layer);
+
+            if (tilemap == null)
             {
-                fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, selectedAsset);
+                string fullPath = selectedAsset;
+                if (!Path.IsPathRooted(selectedAsset))
+                {
+                    fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, selectedAsset);
+                }
+
+                var texture = engine.AssetManager.GetTexture(fullPath);
+                // Nouveau par défaut: on crée une ChunkedTilemap
+                chunked = new ChunkedTilemap(Vector2.Zero, tileSize, texture, selectedAsset)
+                {
+                    Name = $"Tilemap∞ [couche {layer}]",
+                    ZIndex = layer
+                };
+                engine.CurrentScene.AddEntity(chunked);
             }
-
-            var texture = engine.AssetManager.GetTexture(fullPath);
-            tilemap = new Tilemap(Vector2.Zero, tileSize, texture, selectedAsset);
-            tilemap.Name = $"Tilemap [couche {layer}]";
-            tilemap.ZIndex = layer;
-            
-            tilemap.AddLayer(new TileLayer(5, 5));
-            
-            engine.CurrentScene.AddEntity(tilemap);
-        }
-        
-        int gridX = (int)(position.X / tileSize);
-        int gridY = (int)(position.Y / tileSize);
-
-        var firstLayer = tilemap.GetLayers()[0];
-
-        if (gridX >= 0 && gridY >= 0) 
-        {
-            int currentH = firstLayer.Data.Length;
-            int currentW = firstLayer.Data[0].Length;
-    
-            if (gridX >= currentW || gridY >= currentH)
+            else
             {
-                int newW = Math.Max(currentW, gridX + 1);
-                int newH = Math.Max(currentH, gridY + 1);
-                firstLayer.Resize(newW, newH);
+                // Chemin rétro-compat: on pose dans la Tilemap dense existante
+                int gridX = (int)(position.X / tileSize);
+                int gridY = (int)(position.Y / tileSize);
+
+                var firstLayer = tilemap.GetLayers()[0];
+
+                if (gridX >= 0 && gridY >= 0) 
+                {
+                    int currentH = firstLayer.Data.Length;
+                    int currentW = firstLayer.Data[0].Length;
+
+                    if (gridX >= currentW || gridY >= currentH)
+                    {
+                        int newW = Math.Max(currentW, gridX + 1);
+                        int newH = Math.Max(currentH, gridY + 1);
+                        firstLayer.Resize(newW, newH);
+                    }
+
+                    // On stocke les tuiles en 1-based dans la tilemap (0 = vide)
+                    firstLayer.Data[gridY][gridX] = ctx.SelectedTile + 1;
+                }
+                return;
             }
-    
-            // On stocke les tuiles en 1-based dans la tilemap (0 = vide)
-            firstLayer.Data[gridY][gridX] = ctx.SelectedTile + 1;
         }
+
+        // Chemin Chunked: on pose la tuile via SetTile (gère alloc de chunk et négatifs)
+        int gx = (int)(position.X / tileSize);
+        int gy = (int)(position.Y / tileSize);
+        chunked!.SetTile(0, gx, gy, ctx.SelectedTile + 1);
     }
 
     void DeleteEntityAt(Engine engine, Vector2 position, int layer)
     {
         int tileSize = GetTileSize();
-        var tilemap = engine.CurrentScene.Entities.OfType<Tilemap>().FirstOrDefault(t => t.ZIndex == layer);
 
+        // Priorité à ChunkedTilemap si présente à ce layer
+        var chunked = engine.CurrentScene.Entities.OfType<ChunkedTilemap>().FirstOrDefault(t => t.ZIndex == layer);
+        int gx = (int)(position.X / tileSize);
+        int gy = (int)(position.Y / tileSize);
+        if (chunked != null)
+        {
+            chunked.ClearTile(0, gx, gy);
+            return;
+        }
+
+        // Rétro-compat Tilemap dense
+        var tilemap = engine.CurrentScene.Entities.OfType<Tilemap>().FirstOrDefault(t => t.ZIndex == layer);
         if (tilemap == null) return;
-        
-        int gridX = (int)(position.X / tileSize);
-        int gridY = (int)(position.Y / tileSize);
 
         var firstLayer = tilemap.GetLayers()[0];
-        if (gridY >= 0 && gridY < firstLayer.Data.Length && gridX >= 0 && gridX < firstLayer.Data[0].Length)
+        if (gy >= 0 && gy < firstLayer.Data.Length && gx >= 0 && gx < firstLayer.Data[0].Length)
         {
-            firstLayer.Data[gridY][gridX] = 0;
+            firstLayer.Data[gy][gx] = 0;
         }
     }
     
@@ -207,21 +233,28 @@ public class MapPainter
         Raylib.DrawTextureRec(tex, sourceRec, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
     }
     
-    public void DrawGrid(RenderTexture2D viewport)
+    public void DrawGrid(RenderTexture2D viewport, Camera2D camera)
     {
         int tileSize = GetTileSize();
         Color gridColor = new Color(50, 50, 50, 255);
-        int width = viewport.Texture.Width;
-        int height = viewport.Texture.Height;
+        
+        // On récupère les limites du monde visibles pour dessiner la grille
+        Vector2 topLeft = Raylib.GetScreenToWorld2D(new Vector2(0, 0), camera);
+        Vector2 bottomRight = Raylib.GetScreenToWorld2D(new Vector2(viewport.Texture.Width, viewport.Texture.Height), camera);
 
-        for (int x = 0; x <= width; x += tileSize)
+        int startX = (int)MathF.Floor(topLeft.X / tileSize) * tileSize;
+        int startY = (int)MathF.Floor(topLeft.Y / tileSize) * tileSize;
+        int endX = (int)MathF.Ceiling(bottomRight.X / tileSize) * tileSize;
+        int endY = (int)MathF.Ceiling(bottomRight.Y / tileSize) * tileSize;
+
+        for (int x = startX; x <= endX; x += tileSize)
         {
-            Raylib.DrawLine(x, 0, x, height, gridColor);
+            Raylib.DrawLine(x, startY, x, endY, gridColor);
         }
 
-        for (int y = 0; y <= height; y += tileSize)
+        for (int y = startY; y <= endY; y += tileSize)
         {
-            Raylib.DrawLine(0, y, width, y, gridColor);
+            Raylib.DrawLine(startX, y, endX, y, gridColor);
         }
     }
 }

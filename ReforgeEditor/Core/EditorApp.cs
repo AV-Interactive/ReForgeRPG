@@ -36,6 +36,9 @@
         
         EditorContext _ctx = new EditorContext();
 
+        float _zoom = 1.0f;
+        Vector2 _cameraTarget = Vector2.Zero;
+        
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
@@ -72,6 +75,9 @@
 
         public void Run()
         {
+            ProjectManager.SetSwitch("test_switch", true);
+            ProjectManager.SetVariable("test_variable", 100);
+            SaveSystem.SaveGameState(1);
             rlImGui.Setup();
             while(_running && !Raylib.WindowShouldClose())
             {
@@ -120,7 +126,9 @@
                 InspectorWidth = inspectorWidth,
                 MenuBarHeight = ImGui.GetFrameHeightWithSpacing(),
                 CurrentScene = _engine.CurrentScene,
-                SelectedTile = _selectedTile
+                SelectedTile = _selectedTile,
+                Zoom = _zoom,
+                CameraTarget = _cameraTarget
             };
             
             // Affichage des panneaux
@@ -135,13 +143,13 @@
             _currentState = _ctx.State;
             _currentLayer = _ctx.CurrentLayer;
             _selectedTile = _ctx.SelectedTile;
+            _zoom = _ctx.Zoom;
+            _cameraTarget = _ctx.CameraTarget;
         }
 
-        public void HandleEditorTools(Vector2 viewportPos)
+        public void HandleEditorTools(Vector2 viewportPos, Vector2 worldMousePos)
         {
-            Vector2 mousePos = ImGui.GetMousePos();
-            Vector2 relativeMousePos = mousePos - viewportPos;
-            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
+            Vector2 snappedPos = EditorMath.SnapToGrid(worldMousePos);
 
             bool isHovered = ImGui.IsWindowHovered();
 
@@ -152,7 +160,7 @@
                 // Logique de dessin
                 if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
                 {
-                    _mapPainter.Update(_engine, _ctx, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
+                    _mapPainter.Update(_engine, _ctx, _contentBrowser.SelectedAsset, _currentLayer, worldMousePos);
                 }
             } 
             
@@ -160,9 +168,8 @@
             {
                 if (isHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    // Pour la sélection, on préfère utiliser la position réelle de la souris dans le monde 
-                    // plutôt qu'une position snappée, pour permettre de cliquer n'importe où sur un grand sprite.
-                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, relativeMousePos, _currentLayer);
+                    // Pour la sélection, on utilise les coordonnées monde directement
+                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, worldMousePos, _currentLayer);
 
                     if (ImGui.GetIO().KeyCtrl)
                     {
@@ -179,9 +186,13 @@
                     }
                 }
 
-                if (isHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                if (isHovered && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                 {
-                    ImGui.OpenPopup("ViewportContextMenu");
+                    // On n'ouvre le menu que si on n'a presque pas bougé (évite le conflit avec le pan)
+                    if (ImGui.GetMouseDragDelta(ImGuiMouseButton.Right).Length() < 5f)
+                    {
+                        ImGui.OpenPopup("ViewportContextMenu");
+                    }
                 }
                 
                 if (ImGui.BeginPopup("ViewportContextMenu"))

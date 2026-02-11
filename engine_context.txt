@@ -146,6 +146,8 @@ public static class ProjectManager
     }
 }
 
+
+
 #---- ReForgeEngine/Core/Attributes.cs
 namespace ReForge.Engine.Core;
 
@@ -155,6 +157,13 @@ using System;
 public class HiddenBehaviorAttribute : Attribute 
 {
 }
+
+[AttributeUsage(AttributeTargets.Class)]
+public class HiddenSelectableBehaviorAttribute : Attribute
+{
+}
+
+
 
 #---- ReForgeEngine/Core/AssetManager.cs
 using Raylib_cs;
@@ -184,27 +193,44 @@ public class AssetManager
     }
 }
 
+
+
 #---- ReForgeEngine/Core/SceneSerializer.cs
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using ReForge.Engin.Core;
 using ReForge.Engine.World;
+using ReForge.Engine.World.Components;
 
 namespace ReForge.Engine.Core;
 
 public static class SceneSerializer
 {
-    private static JsonSerializerOptions _options = new JsonSerializerOptions
+    static JsonSerializerOptions _options = new JsonSerializerOptions
     {
         WriteIndented = true,
         IncludeFields = true,
         UnknownTypeHandling = (JsonUnknownTypeHandling)JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor,
+        
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { CreateBehaviorResolver }
+            Modifiers = { CreateBehaviorResolver, CreateEntityResolver }
         }
     };
+
+    static void CreateEntityResolver(JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Type == typeof(Entity))
+        {
+            var polymorphismOptions = new JsonPolymorphismOptions();
+        
+            polymorphismOptions.DerivedTypes.Add(new JsonDerivedType(typeof(Tilemap), "Tilemap"));
+            
+            typeInfo.PolymorphismOptions = polymorphismOptions;
+        }
+    }
 
     static void CreateBehaviorResolver(JsonTypeInfo typeInfo)
     {
@@ -259,25 +285,32 @@ public static class SceneSerializer
 
                 foreach (var entity in loadedEntities)
                 {
-                    // 1. On restaure la texture
-                    if (!string.IsNullOrEmpty(entity.TexturePath))
+                    // Réhydratation de la texture via chemin relatif
+                    if (entity.Sprite != null && !string.IsNullOrEmpty(entity.Sprite.TexturePath))
                     {
-                        entity.Texture = engine.AssetManager.GetTexture(entity.TexturePath);
+                        // On combine avec le root du projet pour trouver le fichier
+                        string fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, entity.Sprite.TexturePath);
+                        entity.Sprite.Texture = engine.AssetManager.GetTexture(fullPath);
+                        
+                        // Synchronisation spécifique Tilemap: la texture interne de rendu doit être renseignée
+                        if (entity is Tilemap tilemap)
+                        {
+                            tilemap.Texture = entity.Sprite.Texture;
+                            if (tilemap.TileSize <= 0) 
+                            {
+                                tilemap.TileSize = ProjectManager.CurrentProject.TileSize;
+                            }
+                        }
                     }
 
-                    // 2. TRANSFERT CRUCIAL : Du JSON vers le moteur
-                    // On récupère les Behaviors que le JSON a mis dans la propriété publique
                     if (entity.Behaviors != null)
                     {
-                        // On crée une copie temporaire pour ne pas modifier la liste pendant qu'on boucle
                         var behaviorsToRestore = entity.Behaviors.ToList();
                     
-                        // On vide la liste pour passer par AddBehavior (qui gère l'Owner et la liste privée)
                         entity.Behaviors.Clear(); 
 
                         foreach (var behavior in behaviorsToRestore)
                         {
-                            // Cette méthode va remplir _behaviors ET mettre l'Owner
                             entity.AddBehavior(behavior); 
                         }
                     }
@@ -293,6 +326,8 @@ public static class SceneSerializer
         }
     }
 }
+
+
 
 #---- ReForgeEngine/Core/Engine.cs
 using Raylib_cs;
@@ -348,7 +383,28 @@ public class Engine
     public void Render()
     {
         Raylib.ClearBackground(Color.Black);
-        CurrentScene.Draw();
+        
+        var camEntity = CurrentScene.GetActiveCameraEntity();
+        
+        if (camEntity != null && !ExternalCameraActive)
+        {
+            Camera2D worldCamera = new Camera2D
+            {
+                Target = camEntity.Position,
+                Offset = new System.Numerics.Vector2(_width / 2, _height / 2),
+                Zoom = 1.0f,
+                Rotation = 0.0f,
+            };
+            
+            Raylib.BeginMode2D(worldCamera);
+            CurrentScene.Draw();
+            Raylib.EndMode2D();
+        }
+        else
+        {
+            CurrentScene.Draw();
+        }
+        
     }
 
     public void CleanUp()
@@ -363,8 +419,13 @@ public class Engine
     
     public Scene CurrentScene { get; set; } = new Scene();
     
+    // When true, an external system (e.g., the Editor) manages the world camera.
+    public bool ExternalCameraActive { get; set; } = false;
+    
     public void DestroyEntity(Entity entity) => CurrentScene.DestroyEntity(entity);
 }
+
+
 
 #---- ReForgeEngine/Core/ProjectSettings.cs
 namespace ReForge.Engine.Core;
@@ -386,6 +447,7 @@ public class ProjectSettings
     public string SceneDirectory { get; set; } = "Scenes";
     public string LastScenePath { get; set; }
     public string StartScenePath { get; set; }
+    public int TileSize { get; set; } = 32;
 
     public string GetFullPath(string relativePath)
     {
@@ -393,9 +455,12 @@ public class ProjectSettings
     }
 }
 
+
+
 #---- ReForgeEngine/World/Scene.cs
 using Raylib_cs;
 using ReForge.Engine.Physics;
+using ReForge.Engine.World.Behaviors;
 
 namespace ReForge.Engine.World;
 
@@ -444,9 +509,16 @@ public class Scene
         }
         _entitiesToRemove.Clear();
     }
+
+    public Entity? GetActiveCameraEntity()
+    {
+        return _entities.FirstOrDefault(e => e.GetBehavior<CameraFollow>() != null);
+    }
     
     public List<Entity> Entities => _entities;
 }
+
+
 
 #---- ReForgeEngine/World/ActionCommand.cs
 using System.Numerics;
@@ -469,6 +541,8 @@ public class ActionCommand
     public Vector2 Destination { get; set; }
 }
 
+
+
 #---- ReForgeEngine/World/Tilemap.cs
 using System.Numerics;
 using Raylib_cs;
@@ -484,31 +558,127 @@ public class TileLayer
     
     public TileLayer(int width, int height)
     {
-        Data = new int[width][];
-        for (int i = 0; i < width; i++)
+        Data = new int[height][];
+        for (int i = 0; i < height; i++)
         {
-            Data[i] = new int[height];
+            Data[i] = new int[width];
         }
+    }
+    
+    public void Resize(int newWidth, int newHeight)
+    {
+        int[][] newData = new int[newHeight][];
+        for (int i = 0; i < newHeight; i++)
+        {
+            newData[i] = new int[newWidth];
+            if (i < Data.Length)
+            {
+                Array.Copy(
+                    Data[i], 
+                    newData[i], 
+                    Math.Min(Data[i].Length, newWidth)
+                );
+            }
+        }
+        Data = newData;
     }
 }
 
 public class Tilemap: Entity
 {
-    List<TileLayer> _layers = new List<TileLayer>();
-    int _tileSize;
-    Texture2D _tileset;
+    public List<TileLayer> Layers { get; set; } = new List<TileLayer>();
+    public int TileSize { get; set; }
     
-    public Tilemap(Vector2 position, int tileSize, Texture2D tileset, string texturePath) : base(position, tileset, "Tilemap", texturePath)
+    [System.Text.Json.Serialization.JsonIgnore] 
+    public new Texture2D Texture { get; set; }
+    
+    public Tilemap(): base() { }
+    
+    public Tilemap(Vector2 position, int tileSize, Texture2D texture, string texturePath) : base(position, texture, "Tilemap", texturePath)
     {
-        _tileSize = tileSize;
-        _tileset = tileset;
+        TileSize = tileSize;
+        this.Texture = texture;
     }
     
-    public void AddLayer(TileLayer layer) => _layers.Add(layer);
+    public override Entity Clone()
+    {
+        var clone = new Tilemap(this.Position, this.TileSize, this.Texture, this.TexturePath)
+        {
+            Name = this.Name,
+            ZIndex = this.ZIndex
+        };
+        
+        // Copie profonde des layers
+        foreach (var layer in this.Layers)
+        {
+            var newLayer = new TileLayer();
+            newLayer.IsCollidable = layer.IsCollidable;
+            newLayer.IsForeground = layer.IsForeground;
+            if (layer.Data != null)
+            {
+                int h = layer.Data.Length;
+                int[][] newData = new int[h][];
+                for (int i = 0; i < h; i++)
+                {
+                    int w = layer.Data[i].Length;
+                    newData[i] = new int[w];
+                    Array.Copy(layer.Data[i], newData[i], w);
+                }
+                newLayer.Data = newData;
+            }
+            clone.Layers.Add(newLayer);
+        }
+        
+        // Tags
+        foreach (var tag in this.Tags)
+        {
+            clone.AddTag(tag);
+        }
+        
+        // Comportements
+        foreach (var behavior in this.Behaviors)
+        {
+            var b = behavior.Clone();
+            clone.AddBehavior(b);
+        }
+        
+        return clone;
+    }
+    
+    public List<TileLayer> GetLayers() => Layers;
+    public void AddLayer(TileLayer layer) => Layers.Add(layer);
     
     public override void Draw()
     {
-        foreach (TileLayer layer in _layers)
+        // Si aucune tuile à dessiner (toutes les layers vides), on dessine le sprite de base
+        bool hasAnyTile = false;
+        foreach (var layer in Layers)
+        {
+            int h = layer.Data.Length;
+            if (h == 0) continue;
+            int w = layer.Data[0].Length;
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    if (layer.Data[y][x] != 0)
+                    {
+                        hasAnyTile = true;
+                        break;
+                    }
+                }
+                if (hasAnyTile) break;
+            }
+            if (hasAnyTile) break;
+        }
+
+        if (!hasAnyTile)
+        {
+            base.Draw();
+            return;
+        }
+
+        foreach (TileLayer layer in Layers)
         {
             DrawLayer(layer);
         }
@@ -516,17 +686,20 @@ public class Tilemap: Entity
 
     public void DrawLayer(TileLayer layer)
     {
-        for (int y = 0; y < layer.Data.GetLength(1); y++)
+        int gridHeight = layer.Data.Length;
+        int gridWidth = layer.Data[0].Length;
+        
+        for (int y = 0; y < gridHeight; y++)
         {
-            for (int x = 0; x < layer.Data.GetLength(0); x++)
-            {
-                int tileId = layer.Data[x][y];
+            for (int x = 0; x < gridWidth; x++)
+            {   
+                int tileId = layer.Data[y][x];
 
                 if (tileId == 0) continue;
 
                 Vector2 screenPos = new Vector2(
-                    Position.X + (x * _tileSize), 
-                    Position.Y + (y * _tileSize)
+                    Position.X + (x * TileSize), 
+                    Position.Y + (y * TileSize)
                 );
 
                 DrawTile(tileId, screenPos);
@@ -534,24 +707,31 @@ public class Tilemap: Entity
         }
     }
     
-    private void DrawTile(int tileId, Vector2 screenPos)
+    void DrawTile(int tileId, Vector2 screenPos)
     {
-        int tilesPerRow = _tileset.Width / _tileSize;
+        if(Texture.Id == 0 || TileSize <= 0) return;
+        
+        int tilesPerRow = Texture.Width / TileSize;
+        
+        if(tilesPerRow <= 0) return;
 
-        int column = tileId % tilesPerRow;
-        int row = tileId / tilesPerRow;
+        // Les IDs stockés dans la layer sont 1-based (0 = vide)
+        int atlasIndex = tileId - 1;
+        int column = atlasIndex % tilesPerRow;
+        int row = atlasIndex / tilesPerRow;
 
-        // 3. Créer le rectangle source (quelle zone de l'image on prend)
         Rectangle sourceRec = new Rectangle(
-            column * _tileSize, 
-            row * _tileSize, 
-            _tileSize, 
-            _tileSize
+            column * TileSize, 
+            row * TileSize, 
+            TileSize, 
+            TileSize
         );
 
-        Raylib.DrawTextureRec(_tileset, sourceRec, screenPos, Color.White);
+        Raylib.DrawTextureRec(Texture, sourceRec, screenPos, Color.White);
     }
 }
+
+
 
 #---- ReForgeEngine/World/Behavior.cs
 using System.Text.Json.Serialization;
@@ -563,17 +743,56 @@ public abstract class Behavior
     [JsonIgnore]
     public Entity Owner { get; set; } = null!;
     
+    // Ordre d'exécution des behaviors pendant Update (plus grand = plus tard)
+    public int UpdateOrder { get; set; } = 0;
+    
     public virtual void Initialize() {}
     public abstract void Update(float deltaTime);
     public abstract Behavior Clone();
     public virtual void OnReceivedEvent(string eventName, object? data = null) {}
 }
 
-#---- ReForgeEngine/World/Components/TransformComponent.cs
-using System.Numerics;
+
+
+#---- ReForgeEngine/World/Components/SpriteComponent.cs
+using System.Text.Json.Serialization;
+using Raylib_cs;
+using ReForge.Engine.Core;
 
 namespace ReForge.Engine.World.Components;
 
+[HiddenBehavior]
+public class SpriteComponent: Behavior
+{
+    public string TexturePath { get; set; } = "";
+    
+    [JsonIgnore]
+    public Texture2D Texture { get; set; }
+
+    public override void Update(float deltaTime)
+    {
+        //
+    }
+
+    public override Behavior Clone()
+    {
+        return new SpriteComponent()
+        {
+            TexturePath = this.TexturePath,
+            Texture = this.Texture
+        };
+    }
+}
+
+
+
+#---- ReForgeEngine/World/Components/TransformComponent.cs
+using System.Numerics;
+using ReForge.Engine.Core;
+
+namespace ReForge.Engine.World.Components;
+
+[HiddenBehavior]
 public class TransformComponent: Behavior
 {
     public Vector2 Position { get; set; }
@@ -591,6 +810,35 @@ public class TransformComponent: Behavior
         };
     }
 }
+
+
+
+#---- ReForgeEngine/World/Behaviors/Timer.cs
+namespace ReForge.Engine.World.Behaviors;
+
+public class Timer: Behavior
+{
+    public float Duration { get; set; }
+    float _elapsedTime;
+
+
+    public override void Update(float deltaTime)
+    {
+        _elapsedTime += deltaTime;
+
+        if (_elapsedTime >= Duration)
+        {
+            Core.Engine.Instance.CurrentScene.DestroyEntity(Owner);
+        }
+    }
+
+    public override Behavior Clone()
+    {
+        return new Timer { Duration = this.Duration };
+    }
+}
+
+
 
 #---- ReForgeEngine/World/Behaviors/Oscillator.cs
 using System.Numerics;
@@ -634,8 +882,12 @@ public class Oscillator: Behavior
     }
 }
 
+
+
 #---- ReForgeEngine/World/Behaviors/BoxCollider.cs
 using Raylib_cs;
+using ReForge.Engine.World.Components;
+
 namespace ReForge.Engine.World.Behaviors;
 
 public class BoxCollider: Behavior
@@ -661,8 +913,15 @@ public class BoxCollider: Behavior
     
     public override void Update(float deltaTime)
     {
-        if (Width == 0) Width = Owner.Texture.Width;
-        if (Height == 0) Height = Owner.Texture.Height;
+        if (Width == 0 || Height == 0)
+        {
+            var sprite = Owner.GetBehavior<SpriteComponent>();
+            if(sprite != null && sprite.Texture.Id != 0)
+            {
+                Width = sprite.Texture.Width;
+                Height = sprite.Texture.Height;
+            }
+        }
     }
 
     public override Behavior Clone()
@@ -681,6 +940,127 @@ public class BoxCollider: Behavior
     }
 }
 
+
+
+#---- ReForgeEngine/World/Behaviors/Follow.cs
+using System.Numerics;
+using ReForge.Engine.World;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class Follow: Behavior
+{
+    public Entity Target { get; set; }
+    public float Smoothness { get; set; } = 5.0f;
+    
+    public override void Update(float deltaTime)
+    {
+        if (Target == null)
+        {
+            Console.WriteLine("No target found");
+            Target = Core.Engine.Instance.CurrentScene.Entities
+                .FirstOrDefault(e => e.Tags.Any(t => t.Trim().Equals("Player", StringComparison.InvariantCultureIgnoreCase)));
+        }
+        
+        if(Target == null) return;
+        
+        Owner.Position = Vector2.Lerp(Owner.Position, Target.Position, Smoothness * deltaTime);
+    }
+
+    public override Behavior Clone()
+    {
+        return new Follow
+        {
+            Target = this.Target,
+            Smoothness = this.Smoothness
+        };
+    }
+}
+
+
+
+#---- ReForgeEngine/World/Behaviors/WorldBounds.cs
+using System.Numerics;
+using ReForge.Engine.World.Components;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class WorldBounds: Behavior
+{
+    public Vector2 MinBounds { get; set; } = new Vector2(float.MinValue, float.MinValue);
+    public Vector2 MaxBounds { get; set; } = new Vector2(float.MaxValue, float.MaxValue);
+
+    public WorldBounds()
+    {
+        // S'assurer que le clamp s'applique après les déplacements
+        UpdateOrder = 1000;
+    }
+    
+    public override void Update(float deltaTime)
+    {
+        // Si les limites sont aux valeurs par défaut (infinies), on ne bloque rien
+        if (MinBounds.X <= float.MinValue + 1 && MaxBounds.X >= float.MaxValue - 1)
+        {
+            return;
+        }
+
+        Vector2 position = Owner.Position;
+        Vector2 maxEffective = MaxBounds;
+        
+        var sprite = Owner.GetBehavior<SpriteComponent>();
+        if (sprite != null && sprite.Texture.Id != 0)
+        {
+            // On réduit la zone de mouvement autorisée de la taille du sprite
+            maxEffective.X -= sprite.Texture.Width;
+            maxEffective.Y -= sprite.Texture.Height;
+        }
+        
+        position.X = Math.Clamp(position.X, MinBounds.X, maxEffective.X);
+        position.Y = Math.Clamp(position.Y, MinBounds.Y, maxEffective.Y);
+        
+        Owner.Position = position;
+    }
+
+    public override Behavior Clone()
+    {
+        return new WorldBounds
+        {
+            MinBounds = this.MinBounds,
+            MaxBounds = this.MaxBounds,
+            UpdateOrder = this.UpdateOrder
+        };
+    }
+}
+
+
+
+#---- ReForgeEngine/World/Behaviors/Velocity.cs
+using System.Numerics;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class Velocity : Behavior
+{
+    public Vector2 Current { get; set; } = Vector2.Zero;
+    public float Friction { get; set; } = 0.95f;
+    public override void Update(float deltaTime)
+    {
+        Owner.Position += Current * deltaTime;
+        Current *= Friction;
+    }
+
+    public override Behavior Clone()
+    {
+        return new Velocity
+        {
+            Current = this.Current,
+            Friction = this.Friction
+        };
+    }
+}
+
+
+
 #---- ReForgeEngine/World/Behaviors/InputMovable.cs
 using System.Numerics;
 using Raylib_cs;
@@ -689,18 +1069,30 @@ namespace ReForge.Engine.World.Behaviors;
 
 public class InputMovable: Behavior
 {
-    public float Speed { get; set; } = 250f;
+    public float Speed { get; set; } = 100f;
+    public float Acceleration { get; set; } = 10f;
     
     public override void Update(float deltaTime)
     {
-        Vector2 nextPos = Owner.Position;
+        var velocity = Owner.GetBehavior<Velocity>();
         
-        if (Raylib.IsKeyDown(KeyboardKey.Right)) nextPos.X += Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Left)) nextPos.X -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Up)) nextPos.Y -= Speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.Down)) nextPos.Y += Speed * deltaTime;
-        
-        Owner.Position = nextPos;
+        Vector2 direction = Vector2.Zero;
+        if (Raylib.IsKeyDown(KeyboardKey.Right)) direction.X += Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Left)) direction.X -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Up)) direction.Y -= Speed * deltaTime;
+        if (Raylib.IsKeyDown(KeyboardKey.Down)) direction.Y += Speed * deltaTime;
+
+        if (direction != Vector2.Zero)
+        {
+            if (velocity != null)
+            {
+                velocity.Current += direction * Acceleration;
+            }
+            else
+            {
+                Owner.Position += direction * Speed * deltaTime;
+            }
+        }
     }
 
     public override Behavior Clone()
@@ -709,11 +1101,282 @@ public class InputMovable: Behavior
     }
 }
 
+
+
+#---- ReForgeEngine/World/Behaviors/CameraFollow.cs
+using System.Numerics;
+using Raylib_cs;
+using ReForge.Engine.World;
+
+namespace ReForge.Engine.World.Behaviors;
+
+public class CameraFollow: Behavior
+{
+    public Entity Target { get; set; }
+    public float Smoothness { get; set; } = 5.0f;
+    
+    public Vector2 MinBounds { get; set; } = new Vector2(float.MinValue, float.MinValue);
+    public Vector2 MaxBounds { get; set; } = new Vector2(float.MaxValue, float.MaxValue);
+    
+    public override void Update(float deltaTime)
+    {
+        if (Target == null)
+        {
+            Console.WriteLine("No target found");
+            Target = Core.Engine.Instance.CurrentScene.Entities
+                .FirstOrDefault(e => e.Tags.Any(t => t.Trim().Equals("Player", StringComparison.InvariantCultureIgnoreCase)));
+        }
+        
+        if(Target == null) return;
+        
+        Vector2 nextPos = Vector2.Lerp(Owner.Position, Target.Position, Smoothness * deltaTime);
+        
+        float screenWidth = Raylib.GetScreenWidth();
+        float screenHeight = Raylib.GetScreenHeight();
+        
+        float minX = MinBounds.X + (screenWidth / 2);
+        float maxX = MaxBounds.X - (screenWidth / 2);
+        float minY = MinBounds.Y + (screenHeight / 2);
+        float maxY = MaxBounds.Y - (screenHeight / 2);
+
+        if (maxX >= minX)
+        {
+            nextPos.X = Math.Clamp(nextPos.X, minX, maxX);
+        }
+        else
+        {
+            nextPos.X = MinBounds.X + (MaxBounds.X - MinBounds.X) / 2;
+        }
+
+        if (maxY >= minY)
+        {
+            nextPos.Y = Math.Clamp(nextPos.Y, minY, maxY);
+        }
+        else
+        {
+            nextPos.Y = MinBounds.Y + (MaxBounds.Y - MinBounds.Y) / 2;
+        }
+        
+        Owner.Position = nextPos;
+    }
+
+    public override Behavior Clone()
+    {
+        return new CameraFollow
+        {
+            Target = this.Target,
+            Smoothness = this.Smoothness
+        };
+    }
+}
+
+
+
+#---- ReForgeEngine/World/ChunkedTilemap.cs
+using System.Numerics;
+using Raylib_cs;
+
+namespace ReForge.Engine.World;
+
+public class ChunkedTilemap : Entity
+{
+    public sealed class Chunk
+    {
+        public readonly int[][] Data; // [y][x]
+        public Chunk(int size)
+        {
+            Data = new int[size][];
+            for (int y = 0; y < size; y++)
+            {
+                Data[y] = new int[size];
+            }
+        }
+    }
+
+    public sealed class Layer
+    {
+        // Dictionnaire clairsemé de chunks pour cette layer
+        public readonly Dictionary<(int cx, int cy), Chunk> Chunks = new();
+    }
+
+    public int TileSize { get; set; }
+    public int ChunkSize { get; set; } = 64; // défaut raisonnable
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public new Texture2D Texture { get; set; }
+
+    public List<Layer> Layers { get; } = new();
+
+    public ChunkedTilemap() : base() { }
+
+    public ChunkedTilemap(Vector2 position, int tileSize, Texture2D texture, string texturePath)
+        : base(position, texture, "ChunkedTilemap", texturePath)
+    {
+        TileSize = tileSize;
+        Texture = texture;
+        // Par défaut, on crée une layer
+        Layers.Add(new Layer());
+    }
+
+    public override Entity Clone()
+    {
+        var clone = new ChunkedTilemap(this.Position, this.TileSize, this.Texture, this.TexturePath)
+        {
+            Name = this.Name,
+            ZIndex = this.ZIndex,
+            ChunkSize = this.ChunkSize
+        };
+
+        foreach (var tag in this.Tags)
+            clone.AddTag(tag);
+
+        foreach (var behavior in this.Behaviors)
+            clone.AddBehavior(behavior.Clone());
+
+        // Copie superficielle des données (profonde par chunks)
+        clone.Layers.Clear();
+        foreach (var layer in Layers)
+        {
+            var newLayer = new Layer();
+            foreach (var kvp in layer.Chunks)
+            {
+                var src = kvp.Value;
+                var dst = new Chunk(ChunkSize);
+                for (int y = 0; y < ChunkSize; y++)
+                {
+                    Array.Copy(src.Data[y], dst.Data[y], ChunkSize);
+                }
+                newLayer.Chunks[kvp.Key] = dst;
+            }
+            clone.Layers.Add(newLayer);
+        }
+
+        return clone;
+    }
+
+    // API principale
+    public void EnsureLayer(int layerIndex)
+    {
+        while (Layers.Count <= layerIndex) Layers.Add(new Layer());
+    }
+
+    public void SetTile(int layerIndex, int gridX, int gridY, int tileId)
+    {
+        EnsureLayer(layerIndex);
+        var (cx, cy, lx, ly) = ToChunkCoords(gridX, gridY);
+        var chunk = GetOrCreateChunk(Layers[layerIndex], cx, cy);
+        chunk.Data[ly][lx] = tileId; // 1-based attendu (0 = vide)
+    }
+
+    public int GetTile(int layerIndex, int gridX, int gridY)
+    {
+        if (layerIndex < 0 || layerIndex >= Layers.Count) return 0;
+        var (cx, cy, lx, ly) = ToChunkCoords(gridX, gridY);
+        var dict = Layers[layerIndex].Chunks;
+        if (!dict.TryGetValue((cx, cy), out var chunk)) return 0;
+        return chunk.Data[ly][lx];
+    }
+
+    public void ClearTile(int layerIndex, int gridX, int gridY)
+    {
+        SetTile(layerIndex, gridX, gridY, 0);
+    }
+
+    (int cx, int cy, int lx, int ly) ToChunkCoords(int gridX, int gridY)
+    {
+        int cs = ChunkSize;
+        // gestion des négatifs: Division entière en C# tronque vers 0, on veut une division de plancher
+        int cx = FloorDiv(gridX, cs);
+        int cy = FloorDiv(gridY, cs);
+        int lx = Mod(gridX, cs);
+        int ly = Mod(gridY, cs);
+        return (cx, cy, lx, ly);
+    }
+
+    static int FloorDiv(int a, int b)
+    {
+        int q = a / b;
+        int r = a % b;
+        if ((r != 0) && ((r > 0) != (b > 0))) q--;
+        return q;
+    }
+
+    static int Mod(int a, int b)
+    {
+        int r = a % b;
+        if (r < 0) r += Math.Abs(b);
+        return r;
+    }
+
+    Chunk GetOrCreateChunk(Layer layer, int cx, int cy)
+    {
+        var key = (cx, cy);
+        if (!layer.Chunks.TryGetValue(key, out var chunk))
+        {
+            chunk = new Chunk(ChunkSize);
+            layer.Chunks[key] = chunk;
+        }
+        return chunk;
+    }
+
+    public override void Draw()
+    {
+        if (Texture.Id == 0 || TileSize <= 0) return;
+        int tilesPerRow = Texture.Width / TileSize;
+        if (tilesPerRow <= 0) return;
+
+        // MVP: on parcourt tous les chunks existants (sparse). Culling caméra possible en amélioration.
+        for (int li = 0; li < Layers.Count; li++)
+        {
+            foreach (var ((cx, cy), chunk) in Layers[li].Chunks)
+            {
+                DrawChunk(chunk, cx, cy, tilesPerRow);
+            }
+        }
+    }
+
+    void DrawChunk(Chunk chunk, int cx, int cy, int tilesPerRow)
+    {
+        int cs = ChunkSize;
+        for (int ly = 0; ly < cs; ly++)
+        {
+            for (int lx = 0; lx < cs; lx++)
+            {
+                int tileId = chunk.Data[ly][lx];
+                if (tileId == 0) continue;
+
+                int atlasIndex = tileId - 1; // 1-based
+                int column = atlasIndex % tilesPerRow;
+                int row = atlasIndex / tilesPerRow;
+
+                Rectangle sourceRec = new Rectangle(
+                    column * TileSize,
+                    row * TileSize,
+                    TileSize,
+                    TileSize
+                );
+
+                // Position monde = origine Tilemap + (coord grille globale * taille tuile)
+                int gridX = cx * cs + lx;
+                int gridY = cy * cs + ly;
+                Vector2 screenPos = new Vector2(
+                    Position.X + (gridX * TileSize),
+                    Position.Y + (gridY * TileSize)
+                );
+
+                Raylib.DrawTextureRec(Texture, sourceRec, screenPos, Color.White);
+            }
+        }
+    }
+}
+
+
+
 #---- ReForgeEngine/World/ActionTrigger.cs
 namespace ReForge.Engine.World;
 using ReForge.Engine.Core;
 
-[HiddenBehavior]
+[HiddenSelectableBehavior] 
 public class ActionTrigger: Behavior
 {
     public List<ActionCommand> OnEnterActions { get; set; } = new();
@@ -787,6 +1450,8 @@ public class ActionTrigger: Behavior
         }
     }
 }
+
+
 #---- ReForgeEngine/World/Entity.cs
 using System.Numerics;
 using System.Text.Json.Serialization;
@@ -798,15 +1463,35 @@ namespace ReForge.Engine.World;
 
 public class Entity
 {
+    // Fields
+    private List<Behavior> _behaviors = new List<Behavior>();
+    private List<string> _tags = new List<string>();
+
+    // Properties
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "Nouvel element";
+    public int ZIndex { get; set; } = 0;
+
+    [JsonIgnore]
     public Vector2 Position 
     {
         get => GetBehavior<TransformComponent>().Position;
         set => GetBehavior<TransformComponent>().Position = value;
     }
-    public int ZIndex { get; set; } = 0;
-    public string TexturePath { get; set; } = "";
+
+    [JsonIgnore]
+    public string TexturePath
+    {
+        get => GetBehavior<SpriteComponent>()?.TexturePath ?? "";
+        set => GetBehavior<SpriteComponent>()?.TexturePath = value;
+    }
+
+    [JsonIgnore]
+    public Texture2D Texture
+    {
+        get => GetBehavior<SpriteComponent>()?.Texture ?? new Texture2D();
+        set { if(GetBehavior<SpriteComponent>()?.Texture != null) GetBehavior<SpriteComponent>().Texture = value; }
+    }
 
     public List<string> Tags
     {
@@ -820,27 +1505,44 @@ public class Entity
         set => _behaviors = value;
     }
 
+    public TransformComponent Transform => GetBehavior<TransformComponent>();
+    public SpriteComponent Sprite => GetBehavior<SpriteComponent>();
+
+    // Constructors
     public Entity()
     {
         AddBehavior(new TransformComponent());
     }
-    
-    public TransformComponent Transform => GetBehavior<TransformComponent>();
-
-    [JsonIgnore]
-    public Texture2D Texture { get; set; }
-    
-    List<Behavior> _behaviors = new List<Behavior>();
-    List<string> _tags = new List<string>();
 
     public Entity(Vector2 position, Texture2D texture, string name, string texturePath) : this()
     {
+        AddBehavior(new SpriteComponent());
         Position = position;
         Texture = texture;
         TexturePath = texturePath;
         Name = name;
     }
 
+    // Public Methods
+    public virtual void Update(float deltaTime)
+    {
+        // Exécuter les behaviors selon leur ordre d'update
+        foreach (Behavior behavior in _behaviors.OrderBy(b => b.UpdateOrder))
+        {
+            behavior.Update(deltaTime);
+        }
+    }
+
+    public virtual void Draw()
+    {
+        var sprite = Sprite;
+        if (sprite != null && sprite.Texture.Id != 0)
+        {
+            Raylib.DrawTextureV(Texture, Position, Color.White);
+        }
+    }
+
+    // Behavior Management
     public void AddBehavior(Behavior behavior)
     {
         behavior.Owner = this;
@@ -852,7 +1554,22 @@ public class Entity
             AddBehavior(trigger);
         }
 
-        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) return;
+        // Empêcher les doublons pour les composants essentiels
+        if (behavior is TransformComponent && this.GetBehavior<TransformComponent>() != null) 
+        {
+            // On met à jour la position si nécessaire ou on ignore simplement
+            var existing = this.GetBehavior<TransformComponent>();
+            existing.Position = ((TransformComponent)behavior).Position;
+            return;
+        }
+
+        if (behavior is SpriteComponent && this.GetBehavior<SpriteComponent>() != null)
+        {
+            var existing = this.GetBehavior<SpriteComponent>();
+            existing.TexturePath = ((SpriteComponent)behavior).TexturePath;
+            existing.Texture = ((SpriteComponent)behavior).Texture;
+            return;
+        }
         
         _behaviors.Add(behavior);
         behavior.Initialize();
@@ -863,28 +1580,30 @@ public class Entity
         _behaviors.Remove(behavior);
     }
 
-    public virtual void Draw()
-    {
-        Raylib.DrawTextureV(Texture, Position, Color.White);
-    }
-
     public T? GetBehavior<T>() where T : Behavior
     {
-        // On regarde si un comportement specifique existe dans la liste
         return _behaviors.OfType<T>().FirstOrDefault();
     }
-    
-    public virtual void Update(float deltaTime)
+
+    public void BroadcastEvent(string eventName, object data)
     {
         foreach (Behavior behavior in _behaviors)
         {
-            behavior.Update(deltaTime);
+            behavior.OnReceivedEvent(eventName, data);
         }
     }
 
-    public Entity Clone()
+    // Tag Management
+    public void AddTag(string tag) => _tags.Add(tag);
+    public bool HasTag(string tag) => _tags.Contains(tag);
+    public void RemoveTag(string tag) => _tags.Remove(tag);
+
+    // Lifecycle
+    public virtual Entity Clone()
     {
         var clone = new Entity(this.Position, this.Texture, this.Name, this.TexturePath);
+        clone.Id = Guid.NewGuid(); // On s'assure d'avoir un nouvel ID
+        clone.ZIndex = this.ZIndex;
         
         foreach (var tag in _tags) clone.AddTag(tag);
 
@@ -896,19 +1615,9 @@ public class Entity
         
         return clone;
     }
-
-    public void BroadcastEvent(string eventName, object data)
-    {
-        foreach (Behavior behavior in _behaviors)
-        {
-            behavior.OnReceivedEvent(eventName, data);
-        }
-    }
-    
-    public void AddTag(string tag) => _tags.Add(tag);
-    public bool HasTag(string tag) => _tags.Contains(tag);
-    public void RemoveTag(string tag) => _tags.Remove(tag);
 }
+
+
 
 #---- ReForgeEngine/Physics/CollisionSystem.cs
 using System.Numerics;
@@ -999,4 +1708,6 @@ public static class CollisionSystem
         _activeCollisions = currentFramePosition;
     }
 }
+
+
 

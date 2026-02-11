@@ -5,6 +5,7 @@ using Raylib_cs;
 using Reforge.Editor.Core;
 using ReForge.Engin.Core;
 using ReForge.Engine.Core;
+using ReForge.Engine.World;
 using rlImGui_cs;
 
 namespace Reforge.Editor.UI;
@@ -28,7 +29,11 @@ public class ContentBrowser
                 {
                     if (ImGui.BeginTabItem(type.ToString()))
                     {
-                        _currentType = type;
+                        if (_currentType != type)
+                        {
+                            _currentType = type;
+                            SelectedAsset = "";                        
+                        }
                         ImGui.EndTabItem();
                     }
                 }
@@ -46,27 +51,43 @@ public class ContentBrowser
 
                 if (Directory.Exists(finalPath))
                 {
-                    ImGui.BeginChild("AssetsList");
+                    ImGui.BeginChild("AssetsList", new Vector2(0, ctx.BrowserContentHeight * 0.4f)); // On limite la hauteur de la liste
                     string[] files = Directory.GetFiles(finalPath);
                     foreach (string file in files)
                     {
-                        string fileName = Path.GetFileName(file);
                         string fileNameWhithoutExtension = Path.GetFileNameWithoutExtension(file);
-                        
-                        if (fileName.StartsWith(".")) continue;
-                        if (ImGui.Selectable(fileNameWhithoutExtension))
+        
+                        if (Path.GetFileName(file).StartsWith(".")) continue;
+
+                        bool isSelected = (SelectedAsset == file);
+                        if (ImGui.Selectable(fileNameWhithoutExtension, isSelected))
                         {
-                            SelectedAsset = file;
-                        }
+                            // On stocke le chemin relatif aux assets si possible
+                            string assetRoot = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory);
+                            if (file.StartsWith(assetRoot))
+                            {
+                                SelectedAsset = Path.GetRelativePath(assetRoot, file);
+                            }
+                            else
+                            {
+                                SelectedAsset = file;
+                            }
             
-                        if (_currentType == AssetType.Scenes)
-                        {
-                            SceneSerializer.Load(engine.CurrentScene, engine, file);
-                            ProjectManager.CurrentSceneName = fileNameWhithoutExtension;
-                            ProjectManager.CurrentScene = engine.CurrentScene;
+                            if (_currentType == AssetType.Scenes)
+                            {
+                                SceneSerializer.Load(engine.CurrentScene, engine, file);
+                                ProjectManager.CurrentSceneName = fileNameWhithoutExtension;
+                            }
                         }
                     }
                     ImGui.EndChild();
+
+                    if ((_currentType == AssetType.Decors || _currentType == AssetType.Actors) && !string.IsNullOrEmpty(SelectedAsset))
+                    {
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(1, 0.8f, 0, 1), "Tileset:");
+                        DrawTileset(engine, ctx, SelectedAsset); // On l'appelle à chaque frame tant qu'un asset est sélectionné
+                    }
                 }
             }
             
@@ -75,7 +96,45 @@ public class ContentBrowser
     
         ImGui.End();
     }
+
+    void DrawTileset(Engine engine, EditorContext ctx, string assetPath)
+    {
+        string fullPath = assetPath;
+        if (!Path.IsPathRooted(assetPath))
+        {
+            fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, assetPath);
+        }
+
+        Texture2D texture = engine.AssetManager.GetTexture(fullPath);
+        float tileSize = EditorConfig.TileSize;
+        int cols = texture.Width / (int)tileSize;
+        int rows = texture.Height / (int)tileSize;
+
+        if (ImGui.BeginChild("TilesetPreview", new Vector2(0, 0)))
+        {
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < cols; x++)
+                {
+                    Vector2 uv0 = new Vector2((x * tileSize) / texture.Width, (y * tileSize) / texture.Height);
+                    Vector2 uv1 = new Vector2(((x + 1) * tileSize) / texture.Width, ((y + 1) * tileSize) / texture.Height);
+                    
+                    ImGui.PushID(y * cols + x);
+                    if (ImGui.ImageButton($"##tile_{x}_{y}", (IntPtr)texture.Id, new Vector2(tileSize, tileSize), uv0, uv1))
+                    {
+                        ctx.SelectedTile = y * cols + x;
+                    }
+                    ImGui.PopID();
+                    
+                    if((x + 1)  < cols) ImGui.SameLine();
+                }
+            }
+            ImGui.EndChild();
+        }
+    }
 }
+
+
 
 #---- ReforgeEditor/UI/HierarchyPanel.cs
 using System.Numerics;
@@ -103,7 +162,26 @@ public class HierarchyPanel
         if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize))
         {
             WindowPosition = ImGui.GetWindowPos();
+
+            if (ImGui.BeginPopupContextWindow("HierarchyContextMenu"))
+            {
+                if (ImGui.MenuItem("Créer une entité vide"))
+                {
+                    var emptyEntity = new Entity();
+                    emptyEntity.Name = "Nouvelle entité";
+                    emptyEntity.ZIndex = ctx.CurrentLayer;
+                    // On place l'entité au centre de la vue ou à (0,0) par défaut
+                    // Pour l'instant on garde le comportement par défaut mais on s'assure qu'elle est ajoutée
+                    ctx.CurrentScene.AddEntity(emptyEntity);
+                    ctx.SelectedEntities.Clear();
+                    ctx.SelectedEntities.Add(emptyEntity);
+                }
+                ImGui.EndPopup();
+            }
+
             int i = 0;
+            Entity? entityToDelete = null;
+
             foreach (Entity entity in entities)
             {
                 bool isSelected = ctx.SelectedEntities.Contains(entity);
@@ -121,12 +199,33 @@ public class HierarchyPanel
                         ctx.SelectedEntities.Add(entity);
                     }
                 }
+
+                if (ImGui.BeginPopupContextItem($"EntityContextMenu##{i}"))
+                {
+                    if (ImGui.MenuItem("Supprimer"))
+                    {
+                        entityToDelete = entity;
+                    }
+                    ImGui.EndPopup();
+                }
+
                 i++;
+            }
+
+            if (entityToDelete != null)
+            {
+                ctx.CurrentScene.DestroyEntity(entityToDelete);
+                if (ctx.SelectedEntities.Contains(entityToDelete))
+                {
+                    ctx.SelectedEntities.Remove(entityToDelete);
+                }
             }
         }
         ImGui.End();
     }
 }
+
+
 
 #---- ReforgeEditor/UI/MenuBarPanel.cs
 using System.Numerics;
@@ -142,8 +241,10 @@ public class MenuBarPanel
 {
     bool _showSavePopup = false;
     bool _showSaveScenePopup = false;
+    bool _showProjectSettingsPopup = false;
     string _projectNameBuffer = "";
     string _sceneNameBuffer = "";
+    int _tileSizeBuffer = 32;
     Engine _engine;
     
     public void Draw(Engine engine, EditorContext ctx)
@@ -193,9 +294,45 @@ public class MenuBarPanel
                 
                 ImGui.EndMenu();
             }
+
+            if (ImGui.BeginMenu("Projet"))
+            {
+                if (ImGui.MenuItem("Paramètres du projet"))
+                {
+                    if (ProjectManager.CurrentProject != null)
+                    {
+                        _tileSizeBuffer = ProjectManager.CurrentProject.TileSize;
+                        _showProjectSettingsPopup = true;
+                    }
+                }
+                ImGui.EndMenu();
+            }
                 
             ImGui.Separator();
-                
+            
+            // Zoom controls
+            ImGui.Text("Zoom:");
+            ImGui.SetNextItemWidth(40);
+            if (ImGui.Button("-"))
+            {
+                ctx.Zoom -= 0.1f;
+                if (ctx.Zoom < 0.1f) ctx.Zoom = 0.1f;
+            }
+            ImGui.SameLine();
+            ImGui.Text($"{ctx.Zoom:P0}");
+            ImGui.SameLine();
+            if (ImGui.Button("+"))
+            {
+                ctx.Zoom += 0.1f;
+                if (ctx.Zoom > 10.0f) ctx.Zoom = 10.0f;
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("100%"))
+            {
+                ctx.Zoom = 1.0f;
+            }
+
+            ImGui.Separator();
                 
             if (ctx.State == EditorApp.EditorState.Editing)
             {
@@ -242,6 +379,14 @@ public class MenuBarPanel
                 
                 if (ImGui.RadioButton("Rectangle", EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle))
                     EditorConfig.CurrentPaintingMode = PaintingMode.Rectangle;
+                
+                ImGui.Separator();
+
+                if (ImGui.MenuItem("Effacer"))
+                {
+                    ctx.SelectedEntities.Clear();
+                    EditorConfig.CurrentPaintingMode = PaintingMode.Eraser;
+                }
             }
             else
             {
@@ -259,8 +404,49 @@ public class MenuBarPanel
             ImGui.OpenPopup("Enregistrer la Scene");
         }
         
+        if (_showProjectSettingsPopup) 
+        {
+            ImGui.OpenPopup("Paramètres du Projet");
+        }
+        
         DrawSavePopup();
         DrawSaveScenePopup();
+        DrawProjectSettingsPopup();
+    }
+    
+    void DrawProjectSettingsPopup()
+    {
+        if (ImGui.BeginPopupModal("Paramètres du Projet", ref _showProjectSettingsPopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0f, 1f), "Taille de la grille (px):");
+            if (ImGui.InputInt("##_tileSizeBuffer", ref _tileSizeBuffer))
+            {
+                if (_tileSizeBuffer < 1) _tileSizeBuffer = 1;
+                if (_tileSizeBuffer > 256) _tileSizeBuffer = 256;
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.Button("Appliquer"))
+            {
+                if (ProjectManager.CurrentProject != null)
+                {
+                    ProjectManager.CurrentProject.TileSize = _tileSizeBuffer;
+                    EditorConfig.TileSize = _tileSizeBuffer;
+                }
+                _showProjectSettingsPopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Annuler")) 
+            {
+                _showProjectSettingsPopup = false;
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
     }
     
     void DrawSavePopup()
@@ -308,6 +494,8 @@ public class MenuBarPanel
         }
     }
 }
+
+
 
 #---- ReforgeEditor/UI/InspectorPanel.cs
 using System.Reflection;
@@ -372,6 +560,13 @@ public class InspectorPanel
     void DrawSingleEntityEditor(EditorContext ctx)
     {
         var selectedEntity = ctx.SelectedEntities[0];
+        
+        string name = selectedEntity.Name;
+        if (ImGui.InputText("Nom", ref name, 64))
+        {
+            selectedEntity.Name = name;
+        }
+
         Vector2 pos = selectedEntity.Position;
         if (ImGui.DragFloat2("Position", ref pos)) selectedEntity.Position = pos;
         
@@ -400,11 +595,52 @@ public class InspectorPanel
         }
 
         ImGui.Separator();
+        
+        // Edition spécifique Tilemap: taille de map (W,H) par layer et taille de tuile
+        if (selectedEntity is Tilemap tilemapEntity)
+        {
+            ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Tilemap");
+
+            int ts = tilemapEntity.TileSize;
+            if (ImGui.InputInt("Taille de tuile", ref ts))
+            {
+                if (ts > 0) tilemapEntity.TileSize = ts;
+            }
+
+            for (int li = 0; li < tilemapEntity.Layers.Count; li++)
+            {
+                var layer = tilemapEntity.Layers[li];
+                int currentH = layer.Data?.Length ?? 0;
+                int currentW = currentH > 0 ? layer.Data[0].Length : 0;
+
+                ImGui.PushID(li);
+                ImGui.Separator();
+                ImGui.Text($"Layer {li}");
+
+                int newW = currentW;
+                int newH = currentH;
+                ImGui.InputInt("Largeur (tuiles)", ref newW);
+                ImGui.InputInt("Hauteur (tuiles)", ref newH);
+
+                if (ImGui.Button("Redimensionner"))
+                {
+                    newW = System.Math.Max(1, newW);
+                    newH = System.Math.Max(1, newH);
+                    layer.Resize(newW, newH);
+                }
+                ImGui.PopID();
+            }
+
+            ImGui.Separator();
+        }
+
         ImGui.Text("Comportements");
         Behavior? behaviorToRemove = null;
 
         foreach (var behavior in selectedEntity.Behaviors)
         {
+            if (behavior.GetType().GetCustomAttribute<HiddenBehaviorAttribute>() != null) continue;
+            
             ImGui.PushID(behavior.GetHashCode());
             
             bool open = ImGui.TreeNodeEx(behavior.GetType().Name, ImGuiTreeNodeFlags.DefaultOpen);
@@ -419,7 +655,7 @@ public class InspectorPanel
             
             if (open)
             {
-                DrawBehaviorEditor(behavior);
+                DrawBehaviorEditor(behavior, ctx);
                 ImGui.TreePop();
             }
             
@@ -441,8 +677,27 @@ public class InspectorPanel
         DrawBehaviorSelector(ctx.SelectedEntities);
     }
 
-    void DrawBehaviorEditor(Behavior behavior)
+    void DrawBehaviorEditor(Behavior behavior, EditorContext ctx)
     {
+        // Bouton spécial pour WorldBounds
+        if (behavior is WorldBounds wb)
+        {
+            if (ImGui.Button("Ajuster à la Tilemap"))
+            {
+                var tilemap = ctx.CurrentScene.Entities.OfType<Tilemap>().FirstOrDefault();
+                if (tilemap != null && tilemap.Layers.Count > 0)
+                {
+                    var layer = tilemap.Layers[0];
+                    float mapWidth = layer.Data[0].Length * tilemap.TileSize;
+                    float mapHeight = layer.Data.Length * tilemap.TileSize;
+
+                    wb.MinBounds = tilemap.Position;
+                    wb.MaxBounds = tilemap.Position + new Vector2(mapWidth, mapHeight);
+                }
+            }
+            ImGui.Separator();
+        }
+
         // PROPRIETES
         var properties = behavior.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
         foreach (var prop in properties)
@@ -576,7 +831,8 @@ public class InspectorPanel
             .Where(p => typeof(Behavior).IsAssignableFrom(p) 
                         && !p.IsAbstract 
                         && p != typeof(Behavior)
-                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null)
+                        && p.GetCustomAttribute<HiddenBehaviorAttribute>() == null
+                        && p.GetCustomAttribute<HiddenSelectableBehaviorAttribute>() == null)
             .ToList();
     }
     
@@ -609,18 +865,23 @@ public class InspectorPanel
     }
 }
 
+
+
 #---- ReforgeEditor/UI/ViewportPanel.cs
 using System.Numerics;
 using ImGuiNET;
 using Raylib_cs;
 using Reforge.Editor.Core;
 using ReForge.Engine.Core;
+using ReForge.Engine.World.Behaviors;
 
 namespace Reforge.Editor.UI;
 
 public class ViewportPanel
 {
     RenderTexture2D _viewportRes;
+    Camera2D _worldCamera;
+    
     public Vector2 WindowPosition { get; private set; }
 
     public void Draw(Engine engine, EditorContext ctx, EditorApp app)
@@ -631,27 +892,101 @@ public class ViewportPanel
         UpdateResolution(windowWidth, windowHeight);
 
         if (_viewportRes.Id == 0) return;
-        
-        Raylib.BeginTextureMode(_viewportRes);
-        engine.Render();
 
-        if (ctx.State == EditorApp.EditorState.Editing)
+        // Gestion du Zoom
+        if (ImGui.IsWindowHovered() && ImGui.GetIO().MouseWheel != 0)
         {
-            ctx.MapPainter.DrawGrid(_viewportRes);
-            ctx.MapPainter.DrawPreview(engine);
-            
-            Vector2 mousePos = ImGui.GetMousePos();
-            Vector2 relativeMousePos = mousePos - WindowPosition;
-            Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
-            
-            var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, snappedPos, ctx.CurrentLayer);
+            ctx.Zoom += ImGui.GetIO().MouseWheel * 0.1f;
+            if (ctx.Zoom < 0.1f) ctx.Zoom = 0.1f;
+            if (ctx.Zoom > 10.0f) ctx.Zoom = 10.0f;
+        }
 
-            foreach (var entity in ctx.SelectedEntities)
+        Vector2 mousePos = ImGui.GetMousePos();
+        Vector2 relativeMousePos = mousePos - WindowPosition;
+
+        // Calcul de la position dans le monde en tenant compte du zoom et du target de la caméra
+        // En mode 2D, ScreenToWorld est nécessaire. Raylib propose GetScreenToWorld2D.
+        // Mais nous sommes dans une texture.
+        
+        _worldCamera.Offset = Vector2.Zero;
+        _worldCamera.Zoom = ctx.Zoom;
+        _worldCamera.Rotation = 0;
+
+        // Déplacement par flèches (vitesse arbitraire)
+        float panSpeed = 200f / ctx.Zoom; // Plus on zoom, plus le déplacement clavier est précis
+        float dt = Raylib.GetFrameTime();
+        if (ImGui.IsKeyDown(ImGuiKey.RightArrow)) ctx.CameraTarget += new Vector2(panSpeed * dt, 0);
+        if (ImGui.IsKeyDown(ImGuiKey.LeftArrow)) ctx.CameraTarget -= new Vector2(panSpeed * dt, 0);
+        if (ImGui.IsKeyDown(ImGuiKey.UpArrow)) ctx.CameraTarget -= new Vector2(0, panSpeed * dt);
+        if (ImGui.IsKeyDown(ImGuiKey.DownArrow)) ctx.CameraTarget += new Vector2(0, panSpeed * dt);
+
+        // Déplacement par Pan (Touchpad / Bouton milieu souris)
+        if (ImGui.IsWindowHovered() && (ImGui.IsMouseDown(ImGuiMouseButton.Middle) || ImGui.IsMouseDown(ImGuiMouseButton.Right)))
+        {
+            Vector2 delta = ImGui.GetIO().MouseDelta;
+            if (delta != Vector2.Zero)
             {
-                bool isHovered  = (entity == hoveredEntity);
-                ctx.Gizmo.Draw(entity, isHovered);
+                ctx.CameraTarget -= delta / ctx.Zoom;
             }
         }
+
+        var cameraEntity = engine.CurrentScene.Entities.FirstOrDefault(e => e.GetBehavior<CameraFollow>() != null);
+        if (ctx.State == EditorApp.EditorState.Playing && cameraEntity != null)
+        {
+            _worldCamera.Target = cameraEntity.Position;
+            _worldCamera.Offset = new Vector2(windowWidth / 2, windowHeight / 2);
+        }
+        else
+        {
+            _worldCamera.Target = ctx.CameraTarget;
+        }
+
+        Vector2 worldMousePos = Raylib.GetScreenToWorld2D(relativeMousePos, _worldCamera);
+        Vector2 snappedPos = EditorMath.SnapToGrid(worldMousePos);
+        
+        var hoveredEntity = ctx.EditorSelector.GetEntityAt(engine.CurrentScene, worldMousePos, ctx.CurrentLayer);
+
+        Raylib.BeginTextureMode(_viewportRes);
+        Raylib.ClearBackground(Color.Black);
+
+        Raylib.BeginMode2D(_worldCamera);
+            
+            engine.ExternalCameraActive = true;
+            engine.Render();
+            engine.ExternalCameraActive = false;
+
+            if (ctx.State == EditorApp.EditorState.Editing)
+            {
+                ctx.MapPainter.DrawGrid(_viewportRes, _worldCamera);
+                
+                // On dessine aussi les entités vides en mode caméra si on est en train d'éditer
+                foreach (var entity in engine.CurrentScene.Entities)
+                {
+                    var sprite = entity.Sprite;
+                    if (sprite == null || sprite.Texture.Id == 0)
+                    {
+                        Rectangle rect = new Rectangle(
+                            entity.Position.X, 
+                            entity.Position.Y, 
+                            EditorConfig.TileSize, 
+                            EditorConfig.TileSize
+                        );
+                
+                        Raylib.DrawRectangleRec(rect, Raylib.Fade(Color.SkyBlue, 0.4f));
+                        Raylib.DrawRectangleLinesEx(rect, 1, Raylib.Fade(Color.SkyBlue, 0.9f));
+                    }
+                }
+
+                ctx.MapPainter.DrawPreview(engine, ctx);
+                
+                foreach (var entity in ctx.SelectedEntities)
+                {
+                    bool isHovered = (entity == hoveredEntity);
+                    ctx.Gizmo.Draw(entity, isHovered);
+                }
+            }
+            
+        Raylib.EndMode2D();
         
         Raylib.EndTextureMode();
         
@@ -662,10 +997,17 @@ public class ViewportPanel
         {
             WindowPosition = ImGui.GetCursorScreenPos();
             
-            app.HandleEditorTools(WindowPosition);
+            app.HandleEditorTools(WindowPosition, worldMousePos);
 
             IntPtr textureId = (IntPtr)_viewportRes.Texture.Id;
             ImGui.Image(textureId, new Vector2(windowWidth, windowHeight), new Vector2(0, 1), new Vector2(1, 0));
+
+            // Indication du zoom en overlay
+            var drawList = ImGui.GetWindowDrawList();
+            Vector2 overlayPos = WindowPosition + new Vector2(10, 10);
+            
+            string zoomText = $"Zoom: {ctx.Zoom:P0}";
+            drawList.AddText(overlayPos, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, 0.8f)), zoomText);
         }
         
         ImGui.End();
@@ -685,6 +1027,8 @@ public class ViewportPanel
         }
     }
 }
+
+
 
 #---- ReforgeEditor/UI/LayerPanel.cs
 using System.Numerics;
@@ -715,22 +1059,76 @@ public class LayerPanel
     }
 }
 
+
+
 #---- ReforgeEditor/Tools/EditorSelector.cs
 using System.Numerics;
 using Raylib_cs;
 using Reforge.Editor.Core;
 using ReForge.Engine.World;
+using System.Linq;
 
 namespace Reforge.Editor.Tools;
 
 public class EditorSelector
 {
+    public int SelectedTile { get; set; } = 0;
     public Entity? GetEntityAt(Scene scene, Vector2 worldMousePos, int layerIndex)
     {
-        return scene.Entities
-            .Where(e => e.Position == worldMousePos)
-            .OrderByDescending(e => e.ZIndex)
-            .FirstOrDefault();
+        float tileSize = EditorConfig.TileSize;
+
+        // 1) Priorité aux entités "unitaires" (non Tilemap)
+        // On cherche d'abord sur la couche active, puis sur les autres si rien n'est trouvé
+        var entitiesToSearch = scene.Entities
+            .Where(e => e is not Tilemap)
+            .OrderByDescending(e => e.ZIndex == layerIndex) // Couche active en premier
+            .ThenByDescending(e => e.Id); // Plus récente en cas de superposition
+
+        var topEntity = entitiesToSearch.FirstOrDefault(e => {
+                float width = tileSize;
+                float height = tileSize;
+
+                if (e.Sprite != null && e.Sprite.Texture.Id != 0)
+                {
+                    width = e.Sprite.Texture.Width;
+                    height = e.Sprite.Texture.Height;
+                }
+
+                // Tolérance de 2 pixels pour faciliter la sélection
+                float margin = 2.0f;
+                return worldMousePos.X >= e.Position.X - margin && worldMousePos.X < e.Position.X + width + margin &&
+                       worldMousePos.Y >= e.Position.Y - margin && worldMousePos.Y < e.Position.Y + height + margin;
+            });
+
+        if (topEntity != null)
+            return topEntity;
+
+        // 2) Sinon, si une Tilemap possède une tuile non vide sous la souris, on retourne la Tilemap
+        var tilemaps = scene.Entities
+            .OfType<Tilemap>()
+            .OrderByDescending(t => t.ZIndex == layerIndex); // Priorité à la couche active
+
+        foreach (var tilemap in tilemaps)
+        {
+            if (tilemap.Layers.Count > 0)
+            {
+                int gx = (int)MathF.Floor((worldMousePos.X - tilemap.Position.X) / tilemap.TileSize);
+                int gy = (int)MathF.Floor((worldMousePos.Y - tilemap.Position.Y) / tilemap.TileSize);
+
+                foreach (var layer in tilemap.Layers)
+                {
+                    if (gy >= 0 && gy < layer.Data.Length && gx >= 0 && gx < layer.Data[gy].Length)
+                    {
+                        if (layer.Data[gy][gx] != 0)
+                        {
+                            return tilemap; 
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     public Entity? UpdateSelection(Scene scene, Vector2 viewportPos, int layerIndex)
@@ -740,11 +1138,11 @@ public class EditorSelector
         Vector2 mousePos = Raylib.GetMousePosition();
         Vector2 relativeMousePos = mousePos - viewportPos;
         
-        Vector2 snappedPos = EditorMath.SnapToGrid(relativeMousePos);
-        
-        return GetEntityAt(scene, snappedPos, layerIndex);
+        return GetEntityAt(scene, relativeMousePos, layerIndex);
     }
 }
+
+
 
 #---- ReforgeEditor/Tools/ProjectPaths.cs
 namespace Reforge.Editor.Tools;
@@ -756,11 +1154,14 @@ public class ProjectPaths
     public static string Scenes = Path.Combine(Root, "Assets", "Scenes");
 }
 
+
+
 #---- ReforgeEditor/Tools/MapPainter.cs
 using System.Numerics;
 using ImGuiNET;
 using Raylib_cs;
 using Reforge.Editor.Core;
+using ReForge.Engin.Core;
 using ReForge.Engine.Core;
 using ReForge.Engine.World;
 
@@ -768,7 +1169,12 @@ namespace Reforge.Editor.Tools;
 
 public class MapPainter
 {
-    public float GridSize = 32.0f;
+    int GetTileSize()
+    {
+        return ProjectManager.CurrentProject?.TileSize > 0 
+            ? ProjectManager.CurrentProject.TileSize 
+            : (int)EditorConfig.TileSize;
+    }
 
     Vector2 _lastSnappedPos;
     bool _hasPreview;
@@ -777,7 +1183,7 @@ public class MapPainter
     Vector2 _currentRectPos;
     bool _isDrawingRect;
 
-    public void Update(Engine engine, string selectedAsset, int currentLayerFromEditor, Vector2 relativeMousePos)
+    public void Update(Engine engine, EditorContext ctx, string selectedAsset, int currentLayerFromEditor, Vector2 relativeMousePos)
     {
         if (string.IsNullOrEmpty(selectedAsset))
         {
@@ -792,11 +1198,17 @@ public class MapPainter
         _hasPreview = ImGui.IsWindowHovered();
         _lastAsset = selectedAsset;
 
+        string fullAssetPath = selectedAsset;
+        if (!Path.IsPathRooted(selectedAsset))
+        {
+            fullAssetPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, selectedAsset);
+        }
+
         if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
         {
             if (_hasPreview && ImGui.IsMouseDown(ImGuiMouseButton.Left))
             {
-                PlaceEntityAt(engine, selectedAsset, snappedPos, currentLayerFromEditor);
+                PlaceEntityAt(engine, ctx, selectedAsset, snappedPos, currentLayerFromEditor);
             }
         } 
         else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle)
@@ -820,84 +1232,193 @@ public class MapPainter
                 float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
                 float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
 
-                for (float x = minX; x <= maxX; x += GridSize)
+                int tileSize = GetTileSize();
+                for (float x = minX; x <= maxX; x += tileSize)
                 {
-                    for (float y = minY; y <= maxY; y += GridSize)
+                    for (float y = minY; y <= maxY; y += tileSize)
                     {
-                        PlaceEntityAt(engine, selectedAsset, new Vector2(x, y), currentLayerFromEditor);
+                        PlaceEntityAt(engine, ctx, selectedAsset, new Vector2(x, y), currentLayerFromEditor);
                     }
                 }
             }
         }
-    }
-
-    private void PlaceEntityAt(Engine engine, string selectedAsset, Vector2 position, int layer)
-    {
-        int targetX = (int)MathF.Round(position.X);
-        int targetY = (int)MathF.Round(position.Y);
-        
-        var existingTile = engine.CurrentScene.Entities.FirstOrDefault(e => 
-            (int)MathF.Round(e.Position.X) == targetX && 
-            (int)MathF.Round(e.Position.Y) == targetY && 
-            e.ZIndex == layer);
-
-        if (existingTile != null)
+        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Eraser)
         {
-            if (existingTile.TexturePath == selectedAsset) return;
-            
-            engine.CurrentScene.DestroyEntity(existingTile);
-        }
-        
-        var tex = engine.AssetManager.GetTexture(selectedAsset);
-        var entity = new Entity(position, tex, "NewTile", selectedAsset);
-        entity.Name = selectedAsset.Split('/').Last().Split('.').First();
-        entity.ZIndex = layer;
-        engine.CurrentScene.AddEntity(entity);
-    }
-    
-    public void DrawPreview(Engine engine)
-    {
-        if (!_hasPreview || string.IsNullOrEmpty(_lastAsset)) return;
-        var tex = engine.AssetManager.GetTexture(_lastAsset);
-
-        if (EditorConfig.CurrentPaintingMode == PaintingMode.Brush)
-        {
-            Raylib.DrawTextureV(tex, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
-        }
-        else if (EditorConfig.CurrentPaintingMode == PaintingMode.Rectangle && ImGui.IsMouseDown(ImGuiMouseButton.Left))
-        {
-            float minX = MathF.Min(_startRectPos.X, _currentRectPos.X);
-            float maxX = MathF.Max(_startRectPos.X, _currentRectPos.X);
-            float minY = MathF.Min(_startRectPos.Y, _currentRectPos.Y);
-            float maxY = MathF.Max(_startRectPos.Y, _currentRectPos.Y);
-
-            for (float x = minX; x <= maxX; x += GridSize)
+            if (_hasPreview && ImGui.IsMouseDown(ImGuiMouseButton.Left))
             {
-                for (float y = minY; y <= maxY; y += GridSize)
-                {
-                    Raylib.DrawTextureV(tex, new Vector2(x, y), Raylib.Fade(Color.White, 0.5f));
-                }
+                DeleteEntityAt(engine, snappedPos, currentLayerFromEditor);
             }
         }
     }
-    
-    public void DrawGrid(RenderTexture2D viewport)
-    {
-        Color gridColor = new Color(50, 50, 50, 255);
-        int width = viewport.Texture.Width;
-        int height = viewport.Texture.Height;
 
-        for (int x = 0; x <= width; x += (int)GridSize)
+    void PlaceEntityAt(Engine engine, EditorContext ctx, string selectedAsset, Vector2 position, int layer)
+    {
+        int tileSize = GetTileSize();
+
+        // Si on est dans le dossier Actors, on crée une Entity individuelle au lieu d'une Tilemap
+        if (selectedAsset.StartsWith("Actors"))
         {
-            Raylib.DrawLine(x, 0, x, height, gridColor);
+            string fullPath = selectedAsset;
+            if (!Path.IsPathRooted(selectedAsset))
+            {
+                fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, selectedAsset);
+            }
+
+            // On vérifie si une entité existe déjà à cette position exacte sur ce layer
+            var existing = engine.CurrentScene.Entities
+                .FirstOrDefault(e => e.Position == position && e.ZIndex == layer);
+            
+            if (existing != null) return;
+
+            var texture = engine.AssetManager.GetTexture(fullPath);
+            var entity = new Entity(position, texture, Path.GetFileNameWithoutExtension(selectedAsset), selectedAsset);
+            entity.ZIndex = layer;
+            engine.CurrentScene.AddEntity(entity);
+            return;
         }
 
-        for (int y = 0; y <= height; y += (int)GridSize)
+        // On privilégie une ChunkedTilemap si présente à ce layer
+        var chunked = engine.CurrentScene.Entities
+            .OfType<ChunkedTilemap>()
+            .FirstOrDefault(t => t.ZIndex == layer);
+
+        if (chunked == null)
         {
-            Raylib.DrawLine(0, y, width, y, gridColor);
+            // S'il y a déjà une Tilemap dense sur ce layer, on continue à l'utiliser pour compat.
+            var tilemap = engine.CurrentScene.Entities
+                .OfType<Tilemap>()
+                .FirstOrDefault(t => t.ZIndex == layer);
+
+            if (tilemap == null)
+            {
+                string fullPath = selectedAsset;
+                if (!Path.IsPathRooted(selectedAsset))
+                {
+                    fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, selectedAsset);
+                }
+
+                var texture = engine.AssetManager.GetTexture(fullPath);
+                // Nouveau par défaut: on crée une ChunkedTilemap
+                chunked = new ChunkedTilemap(Vector2.Zero, tileSize, texture, selectedAsset)
+                {
+                    Name = $"Tilemap∞ [couche {layer}]",
+                    ZIndex = layer
+                };
+                engine.CurrentScene.AddEntity(chunked);
+            }
+            else
+            {
+                // Chemin rétro-compat: on pose dans la Tilemap dense existante
+                int gridX = (int)(position.X / tileSize);
+                int gridY = (int)(position.Y / tileSize);
+
+                var firstLayer = tilemap.GetLayers()[0];
+
+                if (gridX >= 0 && gridY >= 0) 
+                {
+                    int currentH = firstLayer.Data.Length;
+                    int currentW = firstLayer.Data[0].Length;
+
+                    if (gridX >= currentW || gridY >= currentH)
+                    {
+                        int newW = Math.Max(currentW, gridX + 1);
+                        int newH = Math.Max(currentH, gridY + 1);
+                        firstLayer.Resize(newW, newH);
+                    }
+
+                    // On stocke les tuiles en 1-based dans la tilemap (0 = vide)
+                    firstLayer.Data[gridY][gridX] = ctx.SelectedTile + 1;
+                }
+                return;
+            }
+        }
+
+        // Chemin Chunked: on pose la tuile via SetTile (gère alloc de chunk et négatifs)
+        int gx = (int)(position.X / tileSize);
+        int gy = (int)(position.Y / tileSize);
+        chunked!.SetTile(0, gx, gy, ctx.SelectedTile + 1);
+    }
+
+    void DeleteEntityAt(Engine engine, Vector2 position, int layer)
+    {
+        int tileSize = GetTileSize();
+
+        // Priorité à ChunkedTilemap si présente à ce layer
+        var chunked = engine.CurrentScene.Entities.OfType<ChunkedTilemap>().FirstOrDefault(t => t.ZIndex == layer);
+        int gx = (int)(position.X / tileSize);
+        int gy = (int)(position.Y / tileSize);
+        if (chunked != null)
+        {
+            chunked.ClearTile(0, gx, gy);
+            return;
+        }
+
+        // Rétro-compat Tilemap dense
+        var tilemap = engine.CurrentScene.Entities.OfType<Tilemap>().FirstOrDefault(t => t.ZIndex == layer);
+        if (tilemap == null) return;
+
+        var firstLayer = tilemap.GetLayers()[0];
+        if (gy >= 0 && gy < firstLayer.Data.Length && gx >= 0 && gx < firstLayer.Data[0].Length)
+        {
+            firstLayer.Data[gy][gx] = 0;
+        }
+    }
+    
+    public void DrawPreview(Engine engine, EditorContext ctx)
+    {
+        if (!_hasPreview || string.IsNullOrEmpty(_lastAsset)) return;
+    
+        string fullPath = _lastAsset;
+        if (!Path.IsPathRooted(_lastAsset))
+        {
+            fullPath = Path.Combine(ProjectManager.ProjectRootPath, ProjectManager.CurrentProject.AssetDirectory, _lastAsset);
+        }
+
+        Texture2D tex = engine.AssetManager.GetTexture(fullPath);
+        float tileSize = GetTileSize();
+        
+        int cols = tex.Width / (int)tileSize;
+        int x = ctx.SelectedTile % cols;
+        int y = ctx.SelectedTile / cols;
+
+        Rectangle sourceRec = new Rectangle(
+            x * tileSize, 
+            y * tileSize, 
+            tileSize, 
+            tileSize
+        );
+    
+        // On dessine la tuile fantôme (semi-transparente)
+        Raylib.DrawTextureRec(tex, sourceRec, _lastSnappedPos, Raylib.Fade(Color.White, 0.5f));
+    }
+    
+    public void DrawGrid(RenderTexture2D viewport, Camera2D camera)
+    {
+        int tileSize = GetTileSize();
+        Color gridColor = new Color(50, 50, 50, 255);
+        
+        // On récupère les limites du monde visibles pour dessiner la grille
+        Vector2 topLeft = Raylib.GetScreenToWorld2D(new Vector2(0, 0), camera);
+        Vector2 bottomRight = Raylib.GetScreenToWorld2D(new Vector2(viewport.Texture.Width, viewport.Texture.Height), camera);
+
+        int startX = (int)MathF.Floor(topLeft.X / tileSize) * tileSize;
+        int startY = (int)MathF.Floor(topLeft.Y / tileSize) * tileSize;
+        int endX = (int)MathF.Ceiling(bottomRight.X / tileSize) * tileSize;
+        int endY = (int)MathF.Ceiling(bottomRight.Y / tileSize) * tileSize;
+
+        for (int x = startX; x <= endX; x += tileSize)
+        {
+            Raylib.DrawLine(x, startY, x, endY, gridColor);
+        }
+
+        for (int y = startY; y <= endY; y += tileSize)
+        {
+            Raylib.DrawLine(startX, y, endX, y, gridColor);
         }
     }
 }
+
+
 
 #---- ReforgeEditor/Tools/GridSnapper.cs
 namespace Reforge.Editor.Tools;
@@ -906,6 +1427,8 @@ public class GridSnapper
 {
     
 }
+
+
 
 #---- ReforgeEditor/Tools/HighlighCellGizmo.cs
 using System.Numerics;
@@ -926,13 +1449,23 @@ public class HighlighCellGizmo
     
     public void Draw(Entity? selectedEntity, bool forceHover = false)
     {
-        float alpha = (MathF.Sin(_blinkTimer* 10f) + 1.0f) / 2.0f;
+        if (selectedEntity == null) return;
+
+        float alpha = (MathF.Sin(_blinkTimer * 10f) + 1.0f) / 2.0f;
+        float width = EditorConfig.TileSize;
+        float height = EditorConfig.TileSize;
+
+        if (selectedEntity.Sprite != null && selectedEntity.Sprite.Texture.Id != 0)
+        {
+            width = selectedEntity.Sprite.Texture.Width;
+            height = selectedEntity.Sprite.Texture.Height;
+        }
 
         Rectangle highlight = new Rectangle(
             selectedEntity.Position.X,
             selectedEntity.Position.Y,
-            EditorConfig.GridSize,
-            EditorConfig.GridSize
+            width,
+            height
         );
         
         if (forceHover)
@@ -945,9 +1478,14 @@ public class HighlighCellGizmo
         {
             Raylib.DrawRectangleLinesEx(highlight, 2, Raylib.Fade(Color.White, alpha));
             Raylib.DrawRectangleRec(highlight, Raylib.Fade(Color.SkyBlue, 0.2f * alpha));
+            
+            // Affichage du nom au-dessus de l'entité sélectionnée
+            Raylib.DrawText(selectedEntity.Name, (int)selectedEntity.Position.X, (int)selectedEntity.Position.Y - 15, 10, Raylib.Fade(Color.White, alpha));
         }
     }
 }
+
+
 
 #---- ReforgeEditor/Core/EditorApp.cs
     using Raylib_cs;
@@ -969,6 +1507,7 @@ public class HighlighCellGizmo
         Engine _engine;
         bool _running = true;
         int _currentLayer = 0;
+        int _selectedTile = 0;
         
         public enum EditorState {Editing, Playing};
         EditorState _currentState = EditorState.Editing;
@@ -984,7 +1523,12 @@ public class HighlighCellGizmo
         HighlighCellGizmo _gizmoHighlighCell = new HighlighCellGizmo();
         EditorSelector _editorSelector = new EditorSelector();
         MenuBarPanel _menuBar = new MenuBarPanel();
+        
+        EditorContext _ctx = new EditorContext();
 
+        float _zoom = 1.0f;
+        Vector2 _cameraTarget = Vector2.Zero;
+        
         public EditorApp()
         {
             _engine = new Engine(_appWidth, _appHeight, "ReForge Editor");
@@ -1009,6 +1553,13 @@ public class HighlighCellGizmo
                 Console.WriteLine($"Aucun projet précédent trouvé ou erreur lors du chargement.");
                 ProjectManager.CreateEmptyTemporaryProject();
             }
+
+            // Synchroniser la taille des tuiles de l'éditeur avec le projet chargé
+            if (ProjectManager.CurrentProject != null && ProjectManager.CurrentProject.TileSize > 0)
+            {
+                EditorConfig.TileSize = ProjectManager.CurrentProject.TileSize;
+            }
+
             EditorConfig.CurrentTool = EditorTool.Drawing;
         }
 
@@ -1047,7 +1598,7 @@ public class HighlighCellGizmo
             float inspectorWidth = Math.Max(windowWidth * 0.20f, 300f);
             
             // Assignation du contexte
-            var ctx = new EditorContext
+            _ctx = new EditorContext
             {
                 State = _currentState,
                 SnapshotEntities = _snapshotEntities,
@@ -1060,41 +1611,52 @@ public class HighlighCellGizmo
                 ContentBrowser = _contentBrowser,
                 SidebarWidth = sidebarWidth, 
                 InspectorWidth = inspectorWidth,
-                MenuBarHeight = ImGui.GetFrameHeightWithSpacing()
+                MenuBarHeight = ImGui.GetFrameHeightWithSpacing(),
+                CurrentScene = _engine.CurrentScene,
+                SelectedTile = _selectedTile,
+                Zoom = _zoom,
+                CameraTarget = _cameraTarget
             };
             
             // Affichage des panneaux
-            _menuBar.Draw(_engine, ctx);
-            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, ctx);
-            _contentBrowser.Draw(_engine, ctx);
-            _layerPanel.Draw(ctx);
-            _viewportPanel.Draw(_engine, ctx, this);
+            _menuBar.Draw(_engine, _ctx);
+            _hierarchyPanel.Draw(_engine.CurrentScene.Entities, _ctx);
+            _contentBrowser.Draw(_engine, _ctx);
+            _layerPanel.Draw(_ctx);
+            _viewportPanel.Draw(_engine, _ctx, this);
             _gizmoHighlighCell.UpdateTimer();
-            _inspectorPanel.Draw(ctx.SelectedEntities.FirstOrDefault(), ctx);
+            _inspectorPanel.Draw(_ctx.SelectedEntities.FirstOrDefault(), _ctx);
 
-            _currentState = ctx.State;
-            _currentLayer = ctx.CurrentLayer;
+            _currentState = _ctx.State;
+            _currentLayer = _ctx.CurrentLayer;
+            _selectedTile = _ctx.SelectedTile;
+            _zoom = _ctx.Zoom;
+            _cameraTarget = _ctx.CameraTarget;
         }
 
-        public void HandleEditorTools(Vector2 viewportPos)
+        public void HandleEditorTools(Vector2 viewportPos, Vector2 worldMousePos)
         {
-            Vector2 mousePos = ImGui.GetMousePos();
-            Vector2 relativeMousePos = mousePos - viewportPos;
-            
+            Vector2 snappedPos = EditorMath.SnapToGrid(worldMousePos);
+
+            bool isHovered = ImGui.IsWindowHovered();
+
             if (EditorConfig.CurrentTool == EditorTool.Drawing)
             {
+                if (!isHovered) return;
+                
                 // Logique de dessin
                 if (!string.IsNullOrEmpty(_contentBrowser.SelectedAsset))
                 {
-                    _mapPainter.Update(_engine, _contentBrowser.SelectedAsset, _currentLayer, relativeMousePos);
+                    _mapPainter.Update(_engine, _ctx, _contentBrowser.SelectedAsset, _currentLayer, worldMousePos);
                 }
             } 
+            
             else if (EditorConfig.CurrentTool == EditorTool.Selection)
             {
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                if (isHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    Vector2 snappedPos = EditorMath.SnapToGridRelativePos(relativeMousePos);
-                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, snappedPos, _currentLayer);
+                    // Pour la sélection, on utilise les coordonnées monde directement
+                    Entity entity = _editorSelector.GetEntityAt(_engine.CurrentScene, worldMousePos, _currentLayer);
 
                     if (ImGui.GetIO().KeyCtrl)
                     {
@@ -1111,7 +1673,44 @@ public class HighlighCellGizmo
                     }
                 }
 
+                if (isHovered && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+                {
+                    // On n'ouvre le menu que si on n'a presque pas bougé (évite le conflit avec le pan)
+                    if (ImGui.GetMouseDragDelta(ImGuiMouseButton.Right).Length() < 5f)
+                    {
+                        ImGui.OpenPopup("ViewportContextMenu");
+                    }
+                }
                 
+                if (ImGui.BeginPopup("ViewportContextMenu"))
+                {
+                    if (ImGui.MenuItem("Créer une entité vide"))
+                    {
+                        var emptyEntity = new Entity();
+                        emptyEntity.Name = "Nouvelle entité";
+                        emptyEntity.Position = snappedPos;
+                        emptyEntity.ZIndex = _currentLayer;
+                       
+                        _engine.CurrentScene.AddEntity(emptyEntity);
+                        
+                        _selectedEntities.Clear();
+                        _selectedEntities.Add(emptyEntity);
+                    }
+
+                    if (_selectedEntities.Count > 0)
+                    {
+                        ImGui.Separator();
+                        if (ImGui.MenuItem("Supprimer la sélection"))
+                        {
+                            foreach (var entity in _selectedEntities)
+                            {
+                                _engine.CurrentScene.DestroyEntity(entity);
+                            }
+                            _selectedEntities.Clear();
+                        }
+                    }
+                    ImGui.EndPopup();
+                }
             }
         }
         
@@ -1120,6 +1719,8 @@ public class HighlighCellGizmo
             _engine.CleanUp();
         }
     }
+
+
 
 #---- ReforgeEditor/Core/EditorContext.cs
 using Reforge.Editor.Tools;
@@ -1144,7 +1745,13 @@ public class EditorContext
     public List<Entity> SnapshotEntities { get; set; } = new List<Entity>();
     public List<Entity> SelectedEntities { get; set; } = new List<Entity>();
     public EditorSelector EditorSelector { get; set; }
+    public ReForge.Engine.World.Scene CurrentScene { get; set; }
+    public int SelectedTile { get; set; }
+    public float Zoom { get; set; } = 1.0f;
+    public System.Numerics.Vector2 CameraTarget { get; set; } = System.Numerics.Vector2.Zero;
 }
+
+
 
 #---- ReforgeEditor/Core/EditorConfig.cs
 namespace Reforge.Editor.Core;
@@ -1158,15 +1765,18 @@ public enum EditorTool
 public enum PaintingMode
 {
     Brush,
-    Rectangle
+    Rectangle,
+    Eraser
 }
 
 public static class EditorConfig
 {
-    public static float GridSize = 32.0f;
     public static EditorTool CurrentTool = EditorTool.Selection;
     public static PaintingMode CurrentPaintingMode = PaintingMode.Brush;
+    public static float TileSize { get; set; } = 32.0f;
 }
+
+
 
 #---- ReforgeEditor/Core/EditorMath.cs
 using System.Numerics;
@@ -1179,8 +1789,8 @@ public static class EditorMath
     public static Vector2 SnapToGrid(Vector2 position)
     {
         return new Vector2(
-            MathF.Floor(position.X / EditorConfig.GridSize) * EditorConfig.GridSize,
-            MathF.Floor(position.Y / EditorConfig.GridSize) * EditorConfig.GridSize
+            MathF.Floor(position.X / EditorConfig.TileSize) * EditorConfig.TileSize,
+            MathF.Floor(position.Y / EditorConfig.TileSize) * EditorConfig.TileSize
         );
     }
 
@@ -1189,6 +1799,8 @@ public static class EditorMath
         return SnapToGrid(relativePosition);
     }
 }
+
+
 
 #---- ReforgeEditor/Core/Program.cs
 namespace Reforge.Editor.Core;
@@ -1201,4 +1813,6 @@ public class Program
         editor.Run();
     }
 }
+
+
 

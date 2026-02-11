@@ -95,6 +95,45 @@ public class InspectorPanel
         }
 
         ImGui.Separator();
+        
+        // Edition spécifique Tilemap: taille de map (W,H) par layer et taille de tuile
+        if (selectedEntity is Tilemap tilemapEntity)
+        {
+            ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Tilemap");
+
+            int ts = tilemapEntity.TileSize;
+            if (ImGui.InputInt("Taille de tuile", ref ts))
+            {
+                if (ts > 0) tilemapEntity.TileSize = ts;
+            }
+
+            for (int li = 0; li < tilemapEntity.Layers.Count; li++)
+            {
+                var layer = tilemapEntity.Layers[li];
+                int currentH = layer.Data?.Length ?? 0;
+                int currentW = currentH > 0 ? layer.Data[0].Length : 0;
+
+                ImGui.PushID(li);
+                ImGui.Separator();
+                ImGui.Text($"Layer {li}");
+
+                int newW = currentW;
+                int newH = currentH;
+                ImGui.InputInt("Largeur (tuiles)", ref newW);
+                ImGui.InputInt("Hauteur (tuiles)", ref newH);
+
+                if (ImGui.Button("Redimensionner"))
+                {
+                    newW = System.Math.Max(1, newW);
+                    newH = System.Math.Max(1, newH);
+                    layer.Resize(newW, newH);
+                }
+                ImGui.PopID();
+            }
+
+            ImGui.Separator();
+        }
+
         ImGui.Text("Comportements");
         Behavior? behaviorToRemove = null;
 

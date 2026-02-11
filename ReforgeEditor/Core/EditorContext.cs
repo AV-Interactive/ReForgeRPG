@@ -22,4 +22,6 @@ public class EditorContext
     public EditorSelector EditorSelector { get; set; }
     public ReForge.Engine.World.Scene CurrentScene { get; set; }
     public int SelectedTile { get; set; }
+    public float Zoom { get; set; } = 1.0f;
+    public System.Numerics.Vector2 CameraTarget { get; set; } = System.Numerics.Vector2.Zero;
 }

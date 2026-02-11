@@ -79,7 +79,30 @@ public class MenuBarPanel
             }
                 
             ImGui.Separator();
-                
+            
+            // Zoom controls
+            ImGui.Text("Zoom:");
+            ImGui.SetNextItemWidth(40);
+            if (ImGui.Button("-"))
+            {
+                ctx.Zoom -= 0.1f;
+                if (ctx.Zoom < 0.1f) ctx.Zoom = 0.1f;
+            }
+            ImGui.SameLine();
+            ImGui.Text($"{ctx.Zoom:P0}");
+            ImGui.SameLine();
+            if (ImGui.Button("+"))
+            {
+                ctx.Zoom += 0.1f;
+                if (ctx.Zoom > 10.0f) ctx.Zoom = 10.0f;
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("100%"))
+            {
+                ctx.Zoom = 1.0f;
+            }
+
+            ImGui.Separator();
                 
             if (ctx.State == EditorApp.EditorState.Editing)
             {
